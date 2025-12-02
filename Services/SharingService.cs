@@ -16,6 +16,9 @@ namespace CloudStorage.Services
         Task<SharedItem?> GetSharedItemByTokenAsync(string token);
         Task<bool> CanAccessSharedItemAsync(string token, string? userId = null);
         Task<bool> UpdateSharePermissionAsync(int shareId, SharePermission permission, string userId);
+        Task<SharedItem?> GetShareByIdAsync(int shareId);
+        Task UpdateShareAsync(int shareId, SharePermission permission, DateTime? expiresAt);
+        Task DeleteShareAsync(int shareId);
     }
 
     public class SharingService : ISharingService
@@ -210,6 +213,50 @@ namespace CloudStorage.Services
 
             _logger.LogInformation("Share permission updated for share {ShareId} by user {UserId}", shareId, userId);
             return true;
+        }
+
+        public async Task<SharedItem?> GetShareByIdAsync(int shareId)
+        {
+            return await _context.SharedItems
+                .Include(s => s.StorageItem)
+                .Include(s => s.SharedWithUser)
+                .FirstOrDefaultAsync(s => s.Id == shareId && s.IsActive);
+        }
+
+        public async Task UpdateShareAsync(int shareId, SharePermission permission, DateTime? expiresAt)
+        {
+            var share = await _context.SharedItems.FindAsync(shareId);
+            
+            if (share == null)
+            {
+                throw new InvalidOperationException("Share not found.");
+            }
+
+            share.Permission = permission;
+            share.ExpiresAt = expiresAt;
+
+            _context.SharedItems.Update(share);
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Share {ShareId} updated: Permission={Permission}, ExpiresAt={ExpiresAt}", 
+                shareId, permission, expiresAt);
+        }
+
+        public async Task DeleteShareAsync(int shareId)
+        {
+            var share = await _context.SharedItems.FindAsync(shareId);
+            
+            if (share == null)
+            {
+                throw new InvalidOperationException("Share not found.");
+            }
+
+            share.IsActive = false;
+
+            _context.SharedItems.Update(share);
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Share {ShareId} removed", shareId);
         }
 
         private static string GenerateAccessToken()

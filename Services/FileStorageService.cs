@@ -7,6 +7,7 @@ namespace CloudStorage.Services
     public interface IFileStorageService
     {
         Task<string> SaveFileAsync(IFormFile file, string userId);
+        Task<string> SaveFileFromPathAsync(string sourcePath, string userId);
         Task<byte[]> GetFileAsync(string filePath);
         Task<bool> DeleteFileAsync(string filePath);
         Task<bool> FileExistsAsync(string filePath);
@@ -57,6 +58,31 @@ namespace CloudStorage.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error saving file {FileName} for user {UserId}", file.FileName, userId);
+                throw;
+            }
+        }
+
+        public async Task<string> SaveFileFromPathAsync(string sourcePath, string userId)
+        {
+            try
+            {
+                var userDirectory = Path.Combine(_uploadsPath, userId);
+                if (!Directory.Exists(userDirectory))
+                {
+                    Directory.CreateDirectory(userDirectory);
+                }
+
+                var fileName = Path.GetFileName(sourcePath);
+                var uniqueFileName = GenerateUniqueFileName(fileName, userId);
+                var destinationPath = Path.Combine(userDirectory, uniqueFileName);
+
+                await Task.Run(() => File.Copy(sourcePath, destinationPath, true));
+
+                return Path.Combine(userId, uniqueFileName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error saving file from path {SourcePath} for user {UserId}", sourcePath, userId);
                 throw;
             }
         }

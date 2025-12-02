@@ -1,0 +1,168 @@
+@model CloudStorage.Models.ViewModels.SearchViewModel
+@{
+    ViewData["Title"] = "Search Results";
+}
+
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-search"></i> Search Files and Folders
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <!-- Search Form -->
+                    <form asp-action="Search" method="get">
+                        <div class="row mb-3">
+                            <div class="col-md-8">
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-search"></i>
+                                    </span>
+                                    <input type="text" 
+                                           name="query" 
+                                           value="@Model.Query" 
+                                           class="form-control form-control-lg" 
+                                           placeholder="Semantic search with Vietnamese support..." 
+                                           autofocus />
+                                </div>
+                                <small class="form-text text-muted">
+                                    <i class="fas fa-magic text-primary"></i> 
+                                    <strong>Smart Search:</strong> Understands Vietnamese accents, abbreviations, and context.
+                                    <br/>
+                                    <em>Example: Search "Báo cáo tài chính tháng 10" finds "Bao_cao_tai_chinh_T10.pdf"</em>
+                                </small>
+                            </div>
+                            <div class="col-md-3">
+                                <select name="itemType" class="form-select form-select-lg">
+                                    <option value="">All Items</option>
+                                    <option value="@CloudStorage.Models.StorageItemType.File" 
+                                            selected="@(Model.ItemType == CloudStorage.Models.StorageItemType.File)">
+                                        Files Only
+                                    </option>
+                                    <option value="@CloudStorage.Models.StorageItemType.Folder" 
+                                            selected="@(Model.ItemType == CloudStorage.Models.StorageItemType.Folder)">
+                                        Folders Only
+                                    </option>
+                                </select>
+                            </div>
+                            <div class="col-md-1">
+                                <button type="submit" class="btn btn-primary btn-lg w-100">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+
+                    @if (!string.IsNullOrWhiteSpace(Model.Query))
+                    {
+                        <hr />
+                        
+                        @if (Model.Results.Any())
+                        {
+                            <div class="alert alert-success">
+                                <i class="fas fa-check-circle"></i> 
+                                Found <strong>@Model.TotalResults</strong> result(s) for "<strong>@Model.Query</strong>"
+                            </div>
+
+                            <div class="list-group">
+                                @foreach (var item in Model.Results)
+                                {
+                                    <div class="list-group-item list-group-item-action">
+                                        <div class="d-flex w-100 justify-content-between align-items-center">
+                                            <div class="d-flex align-items-center flex-grow-1">
+                                                @if (item.Type == CloudStorage.Models.StorageItemType.Folder)
+                                                {
+                                                    <i class="bi bi-folder-fill text-warning fs-3 me-3"></i>
+                                                }
+                                                else
+                                                {
+                                                    <i class="bi bi-file-earmark-fill text-primary fs-3 me-3"></i>
+                                                }
+                                                <div class="flex-grow-1">
+                                                    <h6 class="mb-1">
+                                                        @item.Name
+                                                        @if (item.IsPublic)
+                                                        {
+                                                            <span class="badge bg-success">Public</span>
+                                                        }
+                                                    </h6>
+                                                    @if (!string.IsNullOrEmpty(item.Description))
+                                                    {
+                                                        <p class="mb-1 text-muted small">
+                                                            <i class="fas fa-info-circle"></i> @item.Description
+                                                        </p>
+                                                    }
+                                                    <small class="text-muted">
+                                                        @if (item.Type == CloudStorage.Models.StorageItemType.File)
+                                                        {
+                                                            <span>
+                                                                <i class="fas fa-hdd"></i> 
+                                                                Size: @((item.Size / 1024.0).ToString("N2")) KB
+                                                            </span>
+                                                            <span class="ms-2">|</span>
+                                                        }
+                                                        <span class="ms-2">
+                                                            <i class="fas fa-calendar"></i> 
+                                                            @item.CreatedAt.ToString("MMM dd, yyyy HH:mm")
+                                                        </span>
+                                                    </small>
+                                                </div>
+                                            </div>
+                                            <div class="btn-group">
+                                                @if (item.Type == CloudStorage.Models.StorageItemType.Folder)
+                                                {
+                                                    <a asp-action="Index" 
+                                                       asp-route-folderId="@item.Id" 
+                                                       class="btn btn-sm btn-primary">
+                                                        <i class="bi bi-folder-open"></i> Open
+                                                    </a>
+                                                }
+                                                else
+                                                {
+                                                    <a asp-action="Download" 
+                                                       asp-route-id="@item.Id" 
+                                                       class="btn btn-sm btn-success">
+                                                        <i class="bi bi-download"></i> Download
+                                                    </a>
+                                                }
+                                                <a asp-action="Share" 
+                                                   asp-route-id="@item.Id" 
+                                                   class="btn btn-sm btn-info">
+                                                    <i class="fas fa-share-alt"></i>
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle"></i> 
+                                No results found for "<strong>@Model.Query</strong>"
+                                <br/>
+                                <small>Try different keywords or check your spelling.</small>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i> 
+                            Enter a search query to find files and folders by name or description.
+                        </div>
+                    }
+                </div>
+                <div class="card-footer">
+                    <a asp-action="Index" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to Storage
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

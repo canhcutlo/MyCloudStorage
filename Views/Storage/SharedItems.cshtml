@@ -1,0 +1,225 @@
+@model CloudStorage.Models.ViewModels.SharedItemsViewModel
+@{
+    ViewData["Title"] = "Shared Items";
+}
+
+<div class="container mt-4">
+    <h2 class="mb-4">
+        <i class="fas fa-share-alt"></i> Shared Items
+    </h2>
+
+    <!-- My Shares Section -->
+    <div class="card mb-4 shadow">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">
+                <i class="fas fa-upload"></i> Items I've Shared
+            </h5>
+        </div>
+        <div class="card-body">
+            @if (Model.MyShares.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Item Name</th>
+                                <th>Shared With</th>
+                                <th>Permission</th>
+                                <th>Expires At</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var share in Model.MyShares)
+                            {
+                                <tr>
+                                    <td>
+                                        <i class="fas @(share.StorageItem?.Type == CloudStorage.Models.StorageItemType.Folder ? "fa-folder text-warning" : "fa-file text-primary") me-2"></i>
+                                        @share.StorageItem?.Name
+                                        @if (!string.IsNullOrEmpty(share.AccessToken))
+                                        {
+                                            <span class="badge bg-success ms-2">
+                                                <i class="fas fa-globe"></i> Public Link
+                                            </span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (!string.IsNullOrEmpty(share.AccessToken))
+                                        {
+                                            <span class="text-muted">Anyone with link</span>
+                                        }
+                                        else
+                                        {
+                                            @(share.SharedWithUser?.Email ?? share.SharedWithEmail ?? "Unknown User")
+                                        }
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">@share.Permission</span>
+                                    </td>
+                                    <td>
+                                        @if (share.ExpiresAt.HasValue)
+                                        {
+                                            @share.ExpiresAt.Value.ToString("yyyy-MM-dd HH:mm")
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">Never</span>
+                                        }
+                                    </td>
+                                    <td>@share.CreatedAt.ToString("yyyy-MM-dd")</td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            @if (!string.IsNullOrEmpty(share.AccessToken))
+                                            {
+                                                var shareUrl = Url.Action("PublicShare", "Share", new { token = share.AccessToken }, Context.Request.Scheme);
+                                                <button type="button" 
+                                                        class="btn btn-sm btn-outline-info" 
+                                                        onclick="copyShareLink('@shareUrl', this)"
+                                                        title="Copy Link">
+                                                    <i class="fas fa-copy"></i>
+                                                </button>
+                                            }
+                                            <a asp-action="EditShare" 
+                                               asp-route-id="@share.Id" 
+                                               class="btn btn-sm btn-outline-secondary"
+                                               title="Edit">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <form asp-action="DeleteShare" 
+                                                  method="post" 
+                                                  style="display: inline;" 
+                                                  onsubmit="return confirm('Are you sure you want to remove this share?');">
+                                                <input type="hidden" name="id" value="@share.Id" />
+                                                <button type="submit" 
+                                                        class="btn btn-sm btn-outline-danger"
+                                                        title="Remove Share">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="text-center py-4">
+                    <i class="fas fa-share-alt fa-3x text-muted mb-3"></i>
+                    <p class="text-muted">You haven't shared any items yet.</p>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Shared With Me Section -->
+    <div class="card shadow">
+        <div class="card-header bg-success text-white">
+            <h5 class="mb-0">
+                <i class="fas fa-download"></i> Items Shared With Me
+            </h5>
+        </div>
+        <div class="card-body">
+            @if (Model.SharedWithMe.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Item Name</th>
+                                <th>Owner</th>
+                                <th>Permission</th>
+                                <th>Expires At</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var share in Model.SharedWithMe)
+                            {
+                                <tr>
+                                    <td>
+                                        <i class="fas @(share.StorageItem?.Type == CloudStorage.Models.StorageItemType.Folder ? "fa-folder text-warning" : "fa-file text-primary") me-2"></i>
+                                        @share.StorageItem?.Name
+                                    </td>
+                                    <td>
+                                        @(share.StorageItem?.Owner?.Email ?? "Unknown")
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">@share.Permission</span>
+                                    </td>
+                                    <td>
+                                        @if (share.ExpiresAt.HasValue)
+                                        {
+                                            @share.ExpiresAt.Value.ToString("yyyy-MM-dd HH:mm")
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">Never</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (share.StorageItem?.Type == CloudStorage.Models.StorageItemType.Folder)
+                                        {
+                                            <a asp-controller="Storage" 
+                                               asp-action="Index" 
+                                               asp-route-folderId="@share.StorageItem.Id" 
+                                               class="btn btn-sm btn-primary">
+                                                <i class="fas fa-folder-open"></i> Open
+                                            </a>
+                                        }
+                                        else if (share.Permission >= CloudStorage.Models.SharePermission.Download)
+                                        {
+                                            <a asp-controller="Storage" 
+                                               asp-action="Download" 
+                                               asp-route-id="@share.StorageItem?.Id" 
+                                               class="btn btn-sm btn-success">
+                                                <i class="fas fa-download"></i> Download
+                                            </a>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="text-center py-4">
+                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                    <p class="text-muted">No items have been shared with you yet.</p>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="mt-3">
+        <a asp-action="Index" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Storage
+        </a>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function copyShareLink(url, button) {
+            navigator.clipboard.writeText(url).then(function() {
+                const originalIcon = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-check"></i>';
+                button.classList.remove('btn-outline-info');
+                button.classList.add('btn-success');
+                
+                setTimeout(function() {
+                    button.innerHTML = originalIcon;
+                    button.classList.remove('btn-success');
+                    button.classList.add('btn-outline-info');
+                }, 2000);
+            }).catch(function(err) {
+                alert('Failed to copy link: ' + err);
+            });
+        }
+    </script>
+}

@@ -7,6 +7,7 @@ namespace CloudStorage.Services
     public interface IStorageService
     {
         Task<IEnumerable<StorageItem>> GetUserItemsAsync(string userId, int? parentFolderId = null);
+        Task<IEnumerable<StorageItem>> GetAllUserItemsAsync(string userId);
         Task<StorageItem?> GetItemAsync(int id, string userId);
         Task<StorageItem?> GetItemByIdAsync(int id);
         Task<StorageItem> CreateFolderAsync(string name, string description, string userId, int? parentFolderId = null, bool isPublic = false);
@@ -20,27 +21,41 @@ namespace CloudStorage.Services
         Task<IEnumerable<StorageItem>> GetBreadcrumbPathAsync(int? folderId, string userId);
         Task<bool> CanUserAccessItemAsync(int itemId, string userId);
         Task<bool> ItemExistsAsync(string name, int? parentFolderId, string userId);
+        Task<IEnumerable<StorageItem>> GetDeletedItemsAsync(string userId);
+        Task<bool> RestoreItemAsync(int id, string userId);
+        Task<bool> PermanentlyDeleteItemAsync(int id, string userId);
+        Task<int> CleanupOldDeletedItemsAsync();
     }
 
     public class StorageService : IStorageService
     {
         private readonly ApplicationDbContext _context;
         private readonly ILogger<StorageService> _logger;
+        private readonly ISemanticSearchService _semanticSearchService;
 
-        public StorageService(ApplicationDbContext context, ILogger<StorageService> logger)
+        public StorageService(ApplicationDbContext context, ILogger<StorageService> logger, ISemanticSearchService semanticSearchService)
         {
             _context = context;
             _logger = logger;
+            _semanticSearchService = semanticSearchService;
         }
 
         public async Task<IEnumerable<StorageItem>> GetUserItemsAsync(string userId, int? parentFolderId = null)
         {
             return await _context.StorageItems
+                .Include(item => item.Shares)
                 .Where(item => item.OwnerId == userId && 
                               item.ParentFolderId == parentFolderId && 
                               !item.IsDeleted)
                 .OrderBy(item => item.Type)
                 .ThenBy(item => item.Name)
+                .ToListAsync();
+        }
+
+        public async Task<IEnumerable<StorageItem>> GetAllUserItemsAsync(string userId)
+        {
+            return await _context.StorageItems
+                .Where(item => item.OwnerId == userId && !item.IsDeleted)
                 .ToListAsync();
         }
 
@@ -172,7 +187,7 @@ namespace CloudStorage.Services
             var item = await GetItemAsync(id, userId);
             if (item == null) return false;
 
-            // Soft delete
+            // Soft delete - storage quota remains unchanged until permanent delete
             item.IsDeleted = true;
             item.DeletedAt = DateTime.UtcNow;
 
@@ -180,17 +195,6 @@ namespace CloudStorage.Services
             if (item.Type == StorageItemType.Folder)
             {
                 await SoftDeleteSubItemsAsync(id, userId);
-            }
-
-            // Update user's storage usage if it's a file
-            if (item.Type == StorageItemType.File)
-            {
-                var user = await _context.Users.FindAsync(userId);
-                if (user != null)
-                {
-                    user.UsedStorage -= item.Size;
-                    _context.Users.Update(user);
-                }
             }
 
             _context.StorageItems.Update(item);
@@ -292,21 +296,55 @@ namespace CloudStorage.Services
 
         public async Task<IEnumerable<StorageItem>> SearchItemsAsync(string userId, string query, StorageItemType? itemType = null)
         {
-            var searchQuery = _context.StorageItems
-                .Where(item => item.OwnerId == userId && 
-                              !item.IsDeleted &&
-                              item.Name.Contains(query));
+            if (string.IsNullOrWhiteSpace(query))
+            {
+                return new List<StorageItem>();
+            }
+
+            // Get all items for the user
+            var allItemsQuery = _context.StorageItems
+                .Where(item => item.OwnerId == userId && !item.IsDeleted);
 
             if (itemType.HasValue)
             {
-                searchQuery = searchQuery.Where(item => item.Type == itemType.Value);
+                allItemsQuery = allItemsQuery.Where(item => item.Type == itemType.Value);
             }
 
-            return await searchQuery
-                .OrderBy(item => item.Type)
-                .ThenBy(item => item.Name)
+            var allItems = await allItemsQuery.ToListAsync();
+
+            // Perform semantic search in memory
+            var results = new List<(StorageItem item, double score)>();
+
+            foreach (var item in allItems)
+            {
+                // Calculate similarity for name
+                double nameScore = _semanticSearchService.CalculateSimilarity(query, item.Name);
+                
+                // Calculate similarity for description
+                double descScore = 0.0;
+                if (!string.IsNullOrWhiteSpace(item.Description))
+                {
+                    descScore = _semanticSearchService.CalculateSimilarity(query, item.Description);
+                }
+
+                // Take the higher score
+                double finalScore = Math.Max(nameScore, descScore * 0.8); // Description weighted slightly lower
+
+                // Include items with score >= 0.4 (lower threshold for better recall)
+                if (finalScore >= 0.4)
+                {
+                    results.Add((item, finalScore));
+                }
+            }
+
+            // Sort by score descending, then by type and name
+            return results
+                .OrderByDescending(r => r.score)
+                .ThenBy(r => r.item.Type)
+                .ThenBy(r => r.item.Name)
                 .Take(100) // Limit results
-                .ToListAsync();
+                .Select(r => r.item)
+                .ToList();
         }
 
         public async Task<long> GetUserStorageUsageAsync(string userId)
@@ -370,9 +408,239 @@ namespace CloudStorage.Services
         {
             return await _context.StorageItems
                 .AnyAsync(item => item.Name == name && 
-                                item.ParentFolderId == parentFolderId && 
-                                item.OwnerId == userId && 
-                                !item.IsDeleted);
+                                 item.ParentFolderId == parentFolderId && 
+                                 item.OwnerId == userId && 
+                                 !item.IsDeleted);
+        }
+
+        public async Task<IEnumerable<StorageItem>> GetDeletedItemsAsync(string userId)
+        {
+            return await _context.StorageItems
+                .Where(item => item.OwnerId == userId && 
+                              item.IsDeleted && 
+                              item.DeletedAt.HasValue)
+                .OrderByDescending(item => item.DeletedAt)
+                .ToListAsync();
+        }
+
+        public async Task<bool> RestoreItemAsync(int id, string userId)
+        {
+            var item = await _context.StorageItems
+                .FirstOrDefaultAsync(i => i.Id == id && i.OwnerId == userId && i.IsDeleted);
+            
+            if (item == null) return false;
+
+            // Restore the item
+            item.IsDeleted = false;
+            item.DeletedAt = null;
+
+            // If it's a folder, restore all sub-items recursively
+            if (item.Type == StorageItemType.Folder)
+            {
+                await RestoreSubItemsAsync(id, userId);
+            }
+
+            // Update user's storage usage if it's a file
+            if (item.Type == StorageItemType.File)
+            {
+                var user = await _context.Users.FindAsync(userId);
+                if (user != null)
+                {
+                    user.UsedStorage += item.Size;
+                    _context.Users.Update(user);
+                }
+            }
+
+            _context.StorageItems.Update(item);
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Item {ItemId} restored by user {UserId}", id, userId);
+            return true;
+        }
+
+        private async Task RestoreSubItemsAsync(int folderId, string userId)
+        {
+            var subItems = await _context.StorageItems
+                .Where(item => item.ParentFolderId == folderId && 
+                              item.OwnerId == userId && 
+                              item.IsDeleted)
+                .ToListAsync();
+
+            foreach (var subItem in subItems)
+            {
+                subItem.IsDeleted = false;
+                subItem.DeletedAt = null;
+
+                if (subItem.Type == StorageItemType.Folder)
+                {
+                    await RestoreSubItemsAsync(subItem.Id, userId);
+                }
+                else if (subItem.Type == StorageItemType.File)
+                {
+                    var user = await _context.Users.FindAsync(userId);
+                    if (user != null)
+                    {
+                        user.UsedStorage += subItem.Size;
+                    }
+                }
+
+                _context.StorageItems.Update(subItem);
+            }
+        }
+
+        public async Task<bool> PermanentlyDeleteItemAsync(int id, string userId)
+        {
+            var item = await _context.StorageItems
+                .FirstOrDefaultAsync(i => i.Id == id && i.OwnerId == userId && i.IsDeleted);
+            
+            if (item == null) return false;
+
+            // Calculate total size to reduce from storage quota
+            long totalSize = await CalculateItemSizeAsync(item);
+
+            // If it's a folder, permanently delete all sub-items
+            if (item.Type == StorageItemType.Folder)
+            {
+                await PermanentlyDeleteSubItemsAsync(id);
+            }
+
+            // Update user's storage usage
+            var user = await _context.Users.FindAsync(userId);
+            if (user != null)
+            {
+                user.UsedStorage -= totalSize;
+                _context.Users.Update(user);
+            }
+
+            // Remove from database
+            _context.StorageItems.Remove(item);
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Item {ItemId} permanently deleted by user {UserId}", id, userId);
+            return true;
+        }
+
+        private async Task<long> CalculateItemSizeAsync(StorageItem item)
+        {
+            if (item.Type == StorageItemType.File)
+            {
+                return item.Size;
+            }
+            
+            // For folders, calculate total size of all files inside
+            long totalSize = 0;
+            var subItems = await _context.StorageItems
+                .Where(i => i.ParentFolderId == item.Id)
+                .ToListAsync();
+
+            foreach (var subItem in subItems)
+            {
+                if (subItem.Type == StorageItemType.File)
+                {
+                    totalSize += subItem.Size;
+                }
+                else
+                {
+                    totalSize += await CalculateItemSizeAsync(subItem);
+                }
+            }
+
+            return totalSize;
+        }
+
+        private async Task PermanentlyDeleteSubItemsAsync(int folderId)
+        {
+            var subItems = await _context.StorageItems
+                .Where(item => item.ParentFolderId == folderId)
+                .ToListAsync();
+
+            foreach (var subItem in subItems)
+            {
+                if (subItem.Type == StorageItemType.Folder)
+                {
+                    await PermanentlyDeleteSubItemsAsync(subItem.Id);
+                }
+                _context.StorageItems.Remove(subItem);
+            }
+        }
+
+        public async Task<int> CleanupOldDeletedItemsAsync()
+        {
+            var fifteenDaysAgo = DateTime.UtcNow.AddDays(-15);
+            
+            var oldDeletedItems = await _context.StorageItems
+                .Where(item => item.IsDeleted && 
+                              item.DeletedAt.HasValue && 
+                              item.DeletedAt.Value <= fifteenDaysAgo &&
+                              item.ParentFolderId == null) // Only get top-level items
+                .ToListAsync();
+
+            int count = 0;
+            foreach (var item in oldDeletedItems)
+            {
+                // Calculate total size
+                long totalSize = await CalculateItemSizeAsync(item);
+
+                // Delete physical files
+                await DeletePhysicalFilesAsync(item);
+
+                // Update user's storage usage
+                var user = await _context.Users.FindAsync(item.OwnerId);
+                if (user != null)
+                {
+                    user.UsedStorage -= totalSize;
+                    _context.Users.Update(user);
+                }
+
+                // If it's a folder, permanently delete all sub-items
+                if (item.Type == StorageItemType.Folder)
+                {
+                    await PermanentlyDeleteSubItemsAsync(item.Id);
+                }
+
+                _context.StorageItems.Remove(item);
+                count++;
+            }
+
+            if (count > 0)
+            {
+                await _context.SaveChangesAsync();
+                _logger.LogInformation("Cleaned up {Count} old deleted items (older than 15 days)", count);
+            }
+
+            return count;
+        }
+
+        private async Task DeletePhysicalFilesAsync(StorageItem item)
+        {
+            if (item.Type == StorageItemType.File && !string.IsNullOrEmpty(item.FilePath))
+            {
+                try
+                {
+                    var fullPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", item.FilePath.TrimStart('/'));
+                    if (File.Exists(fullPath))
+                    {
+                        File.Delete(fullPath);
+                        _logger.LogInformation("Deleted physical file: {FilePath}", item.FilePath);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error deleting physical file {FilePath}", item.FilePath);
+                }
+            }
+            else if (item.Type == StorageItemType.Folder)
+            {
+                // Recursively delete files in folder
+                var subItems = await _context.StorageItems
+                    .Where(i => i.ParentFolderId == item.Id)
+                    .ToListAsync();
+
+                foreach (var subItem in subItems)
+                {
+                    await DeletePhysicalFilesAsync(subItem);
+                }
+            }
         }
     }
 }

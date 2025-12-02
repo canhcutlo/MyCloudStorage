@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "A:\\MyCloudStorage\\CloudStorage.csproj": {}
+    "C:\\Project\\MyCloudStorage\\CloudStorage.csproj": {}
   },
   "projects": {
-    "A:\\MyCloudStorage\\CloudStorage.csproj": {
+    "C:\\Project\\MyCloudStorage\\CloudStorage.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "A:\\MyCloudStorage\\CloudStorage.csproj",
+        "projectUniqueName": "C:\\Project\\MyCloudStorage\\CloudStorage.csproj",
         "projectName": "CloudStorage",
-        "projectPath": "A:\\MyCloudStorage\\CloudStorage.csproj",
+        "projectPath": "C:\\Project\\MyCloudStorage\\CloudStorage.csproj",
         "packagesPath": "C:\\Users\\trung\\.nuget\\packages\\",
-        "outputPath": "A:\\MyCloudStorage\\obj\\",
+        "outputPath": "C:\\Project\\MyCloudStorage\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -84,7 +84,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.301/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.308/PortableRuntimeIdentifierGraph.json"
         }
       }
     }

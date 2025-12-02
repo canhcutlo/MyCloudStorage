@@ -1,0 +1,149 @@
+@model CloudStorage.Models.ViewModels.ShareItemViewModel
+@{
+    ViewData["Title"] = "Share Item";
+}
+
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-share-alt"></i> Share Item
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <strong><i class="fas fa-info-circle"></i> Sharing:</strong> @Model.ItemName
+                    </div>
+
+                    <form asp-action="Share" method="post">
+                        <input type="hidden" asp-for="ItemId" />
+                        <input type="hidden" asp-for="ItemName" />
+
+                        <!-- Sharing Options -->
+                        <div class="mb-4">
+                            <h5 class="mb-3">Share Options</h5>
+                            
+                            <!-- Share with Specific User -->
+                            <div class="card mb-3">
+                                <div class="card-body">
+                                    <h6 class="card-title">
+                                        <i class="fas fa-user"></i> Share with Specific User
+                                    </h6>
+                                    <div class="mb-3">
+                                        <label asp-for="ShareWithEmail" class="form-label">Email Address</label>
+                                        <input asp-for="ShareWithEmail" 
+                                               type="email" 
+                                               class="form-control" 
+                                               placeholder="Enter user's email address..." />
+                                        <span asp-validation-for="ShareWithEmail" class="text-danger"></span>
+                                        <small class="form-text text-muted">
+                                            The user will receive access to this item.
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Create Public Link -->
+                            <div class="card mb-3">
+                                <div class="card-body">
+                                    <div class="form-check">
+                                        <input asp-for="CreatePublicLink" 
+                                               class="form-check-input" 
+                                               type="checkbox" />
+                                        <label asp-for="CreatePublicLink" class="form-check-label">
+                                            <strong><i class="fas fa-globe"></i> Create Public Link</strong>
+                                        </label>
+                                    </div>
+                                    <small class="form-text text-muted">
+                                        Anyone with the link can access this item.
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Permission Settings -->
+                        <div class="mb-3">
+                            <label asp-for="Permission" class="form-label fw-bold">Permission Level</label>
+                            <select asp-for="Permission" class="form-select">
+                                <option value="@CloudStorage.Models.SharePermission.ViewOnly">
+                                    View Only - Can only view the item
+                                </option>
+                                <option value="@CloudStorage.Models.SharePermission.Download" selected>
+                                    Download - Can view and download
+                                </option>
+                                <option value="@CloudStorage.Models.SharePermission.Edit">
+                                    Edit - Can view, download, and edit
+                                </option>
+                                <option value="@CloudStorage.Models.SharePermission.FullAccess">
+                                    Full Access - Can view, download, edit, and delete
+                                </option>
+                            </select>
+                            <span asp-validation-for="Permission" class="text-danger"></span>
+                        </div>
+
+                        <!-- Expiration Date -->
+                        <div class="mb-3">
+                            <label asp-for="ExpiresAt" class="form-label fw-bold">
+                                Expiration Date (Optional)
+                            </label>
+                            <input asp-for="ExpiresAt" 
+                                   type="datetime-local" 
+                                   class="form-control" />
+                            <span asp-validation-for="ExpiresAt" class="text-danger"></span>
+                            <small class="form-text text-muted">
+                                Leave empty for permanent access. Set a date to automatically revoke access.
+                            </small>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="d-flex justify-content-between mt-4">
+                            <a asp-action="Index" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Cancel
+                            </a>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-share-alt"></i> Share Item
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Sharing Tips -->
+            <div class="card mt-3">
+                <div class="card-body">
+                    <h6 class="card-title"><i class="fas fa-lightbulb text-warning"></i> Sharing Tips</h6>
+                    <ul class="mb-0 small">
+                        <li><strong>Specific User:</strong> Share with someone by their email. They must have an account.</li>
+                        <li><strong>Public Link:</strong> Anyone with the link can access. Great for external sharing.</li>
+                        <li><strong>Permissions:</strong> Choose the appropriate level based on what recipients should do.</li>
+                        <li><strong>Expiration:</strong> Set an expiration date for temporary access.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const createPublicLink = document.querySelector('input[name="CreatePublicLink"]');
+            const shareWithEmail = document.querySelector('input[name="ShareWithEmail"]');
+            
+            if (createPublicLink && shareWithEmail) {
+                createPublicLink.addEventListener('change', function() {
+                    if (this.checked) {
+                        shareWithEmail.value = '';
+                        shareWithEmail.disabled = true;
+                    } else {
+                        shareWithEmail.disabled = false;
+                    }
+                });
+            }
+        });
+    </script>
+}

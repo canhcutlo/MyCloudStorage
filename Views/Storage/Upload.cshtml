@@ -29,8 +29,11 @@
                     </div>
                     
                     <div class="mb-3 form-check">
-                        <input asp-for="IsPublic" class="form-check-input" />
-                        <label asp-for="IsPublic" class="form-check-label">Make this file public</label>
+                        <input asp-for="AutoClassify" class="form-check-input" />
+                        <label asp-for="AutoClassify" class="form-check-label">
+                            🤖 Auto-classify into appropriate folder
+                        </label>
+                        <div class="form-text">AI will automatically organize your file into the right category folder</div>
                     </div>
                     
                     <div class="d-flex gap-2">

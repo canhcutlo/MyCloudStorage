@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using CloudStorage.Data;
 using CloudStorage.Models;
 using CloudStorage.Services;
+using CloudStorage.BackgroundServices;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -49,6 +50,11 @@ builder.Services.ConfigureApplicationCookie(options =>
 builder.Services.AddScoped<IStorageService, StorageService>();
 builder.Services.AddScoped<IFileStorageService, FileStorageService>();
 builder.Services.AddScoped<ISharingService, SharingService>();
+builder.Services.AddScoped<ISemanticSearchService, SemanticSearchService>();
+builder.Services.AddScoped<GeminiAIService>();
+
+// Register background services
+builder.Services.AddHostedService<TrashCleanupService>();
 
 // Configure file upload limits
 builder.Services.Configure<IISServerOptions>(options =>

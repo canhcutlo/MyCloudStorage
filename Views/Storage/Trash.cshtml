@@ -1,0 +1,172 @@
+@model IEnumerable<StorageItem>
+@{
+    ViewData["Title"] = "Trash";
+}
+
+<div class="container my-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-trash"></i> Trash</h2>
+        <div>
+            <a asp-action="Index" class="btn btn-secondary">
+                <i class="bi bi-arrow-left"></i> Back to Storage
+            </a>
+            @if (Model.Any())
+            {
+                <form asp-action="EmptyTrash" method="post" style="display: inline;">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-danger" onclick="return confirm('Are you sure you want to permanently delete all items in trash? This action cannot be undone!');">
+                        <i class="bi bi-trash-fill"></i> Empty Trash
+                    </button>
+                </form>
+            }
+        </div>
+    </div>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @TempData["ErrorMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @if (!Model.Any())
+    {
+        <div class="text-center py-5">
+            <i class="bi bi-trash" style="font-size: 4rem; color: #ccc;"></i>
+            <h4 class="mt-3 text-muted">Trash is empty</h4>
+            <p class="text-muted">Deleted files and folders will appear here</p>
+            <p class="text-muted small">Items in trash are automatically deleted after 15 days</p>
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i> Items in trash will be automatically deleted after 15 days. You can restore or permanently delete them before then.
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>Size</th>
+                        <th>Deleted Date</th>
+                        <th>Days Remaining</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model.OrderByDescending(i => i.DeletedAt))
+                    {
+                        var daysRemaining = item.DeletedAt.HasValue 
+                            ? Math.Max(0, 15 - (DateTime.UtcNow - item.DeletedAt.Value).Days) 
+                            : 15;
+                        var isExpiringSoon = daysRemaining <= 3;
+
+                        <tr class="@(isExpiringSoon ? "table-warning" : "")">
+                            <td>
+                                @if (item.Type == StorageItemType.Folder)
+                                {
+                                    <i class="bi bi-folder-fill text-warning"></i>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-file-earmark text-primary"></i>
+                                }
+                                <span class="ms-2">@item.Name</span>
+                                @if (!string.IsNullOrEmpty(item.Description))
+                                {
+                                    <br />
+                                    <small class="text-muted ms-4">@item.Description</small>
+                                }
+                            </td>
+                            <td>
+                                @if (item.Type == StorageItemType.File)
+                                {
+                                    <span class="badge bg-primary">File</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-warning">Folder</span>
+                                }
+                            </td>
+                            <td>
+                                @if (item.Type == StorageItemType.File)
+                                {
+                                    @FormatFileSize(item.Size)
+                                }
+                                else
+                                {
+                                    <span class="text-muted">-</span>
+                                }
+                            </td>
+                            <td>
+                                @if (item.DeletedAt.HasValue)
+                                {
+                                    @item.DeletedAt.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm")
+                                }
+                            </td>
+                            <td>
+                                @if (isExpiringSoon)
+                                {
+                                    <span class="badge bg-danger">@daysRemaining day(s)</span>
+                                }
+                                else
+                                {
+                                    <span>@daysRemaining day(s)</span>
+                                }
+                            </td>
+                            <td>
+                                <form asp-action="Restore" asp-route-id="@item.Id" method="post" style="display: inline;">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn-sm btn-success" title="Restore">
+                                        <i class="bi bi-arrow-counterclockwise"></i> Restore
+                                    </button>
+                                </form>
+                                <form asp-action="PermanentDelete" asp-route-id="@item.Id" method="post" style="display: inline;">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn-sm btn-danger" 
+                                            onclick="return confirm('Are you sure you want to permanently delete this item? This action cannot be undone!');"
+                                            title="Delete Forever">
+                                        <i class="bi bi-x-circle"></i> Delete Forever
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <div class="mt-3">
+            <p class="text-muted small">
+                <i class="bi bi-info-circle"></i> Total items in trash: <strong>@Model.Count()</strong>
+            </p>
+        </div>
+    }
+</div>
+
+@functions {
+    private string FormatFileSize(long bytes)
+    {
+        string[] sizes = { "B", "KB", "MB", "GB", "TB" };
+        double len = bytes;
+        int order = 0;
+        while (len >= 1024 && order < sizes.Length - 1)
+        {
+            order++;
+            len = len / 1024;
+        }
+        return $"{len:0.##} {sizes[order]}";
+    }
+}

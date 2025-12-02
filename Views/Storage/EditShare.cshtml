@@ -1,0 +1,89 @@
+@model CloudStorage.Models.ViewModels.EditShareViewModel
+@{
+    ViewData["Title"] = "Edit Share";
+}
+
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-warning text-dark">
+                    <h4 class="mb-0">
+                        <i class="fas fa-edit"></i> Edit Share Settings
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <strong><i class="fas fa-info-circle"></i> Editing share for:</strong> @Model.ItemName
+                        @if (Model.IsPublicLink)
+                        {
+                            <span class="badge bg-success ms-2">
+                                <i class="fas fa-globe"></i> Public Link
+                            </span>
+                        }
+                        else
+                        {
+                            <br />
+                            <small class="text-muted">Shared with: @Model.SharedWithEmail</small>
+                        }
+                    </div>
+
+                    <form asp-action="EditShare" method="post">
+                        <input type="hidden" asp-for="Id" />
+                        <input type="hidden" asp-for="ItemName" />
+                        <input type="hidden" asp-for="IsPublicLink" />
+                        <input type="hidden" asp-for="SharedWithEmail" />
+
+                        <!-- Permission Settings -->
+                        <div class="mb-3">
+                            <label asp-for="Permission" class="form-label fw-bold">Permission Level</label>
+                            <select asp-for="Permission" class="form-select">
+                                <option value="@CloudStorage.Models.SharePermission.ViewOnly">
+                                    View Only - Can only view the item
+                                </option>
+                                <option value="@CloudStorage.Models.SharePermission.Download">
+                                    Download - Can view and download
+                                </option>
+                                <option value="@CloudStorage.Models.SharePermission.Edit">
+                                    Edit - Can view, download, and edit
+                                </option>
+                                <option value="@CloudStorage.Models.SharePermission.FullAccess">
+                                    Full Access - Can view, download, edit, and delete
+                                </option>
+                            </select>
+                            <span asp-validation-for="Permission" class="text-danger"></span>
+                        </div>
+
+                        <!-- Expiration Date -->
+                        <div class="mb-3">
+                            <label asp-for="ExpiresAt" class="form-label fw-bold">
+                                Expiration Date (Optional)
+                            </label>
+                            <input asp-for="ExpiresAt" 
+                                   type="datetime-local" 
+                                   class="form-control" />
+                            <span asp-validation-for="ExpiresAt" class="text-danger"></span>
+                            <small class="form-text text-muted">
+                                Leave empty for permanent access. Set a date to automatically revoke access.
+                            </small>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="d-flex justify-content-between mt-4">
+                            <a asp-action="SharedItems" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Cancel
+                            </a>
+                            <button type="submit" class="btn btn-warning text-dark">
+                                <i class="fas fa-save"></i> Update Share
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

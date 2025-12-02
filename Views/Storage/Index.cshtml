@@ -7,12 +7,15 @@
 
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h2>@ViewData["Title"]</h2>
-    <div>
-        <a asp-action="Upload" asp-route-folderId="@currentFolderId" class="btn btn-primary me-2">
+    <div class="btn-group">
+        <a asp-action="Upload" asp-route-folderId="@currentFolderId" class="btn btn-primary">
             <i class="fas fa-upload"></i> Upload File
         </a>
         <a asp-action="CreateFolder" asp-route-parentFolderId="@currentFolderId" class="btn btn-success">
             <i class="fas fa-folder-plus"></i> New Folder
+        </a>
+        <a asp-action="AICreateFolder" asp-route-parentFolderId="@currentFolderId" class="btn btn-info text-white">
+            <i class="bi bi-robot"></i> AI Create
         </a>
     </div>
 </div>
@@ -146,9 +149,9 @@
                                         <i class="fas fa-file text-primary me-2"></i>@item.Name
                                     }
                                     
-                                    @if (item.IsPublic)
+                                    @if (item.Shares != null && item.Shares.Any(s => s.IsActive))
                                     {
-                                        <i class="fas fa-globe text-success ms-2" title="Public"></i>
+                                        <i class="fas fa-share-alt text-info ms-2" title="Shared"></i>
                                     }
                                 </td>
                                 <td>

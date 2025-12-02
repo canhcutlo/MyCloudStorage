@@ -20,10 +20,16 @@ A modern cloud storage application built with ASP.NET MVC, similar to Google Dri
 - Support for various file types with MIME type detection
 
 ### 🔍 Search & Navigation
-- Full-text search across files and folders
+- **Semantic Search** with Vietnamese language support
+  - Understands Vietnamese accents and diacritics
+  - Matches files written without accents (e.g., "Báo cáo tài chính" → "Bao_cao_tai_chinh.pdf")
+  - Recognizes common abbreviations (T10 → tháng 10, BC → báo cáo, TC → tài chính)
+  - Token-based similarity matching with relevance scoring
+  - Number-aware search for dates and quarters
 - Breadcrumb navigation
-- Filter by file type
+- Filter by file type (Files/Folders)
 - Responsive file browser interface
+- Sort results by relevance
 
 ### 🤝 Sharing Capabilities
 - Share files and folders with other users
@@ -110,7 +116,9 @@ CloudStorage/
 ├── Services/             # Business logic services
 │   ├── FileStorageService.cs   # File system operations
 │   ├── SharingService.cs       # Sharing functionality
-│   └── StorageService.cs       # Database operations
+│   ├── StorageService.cs       # Database operations
+│   ├── SemanticSearchService.cs # Intelligent search engine
+│   └── GeminiAIService.cs      # AI integration
 ├── Views/                # Razor views
 │   ├── Account/               # Authentication views
 │   ├── Share/                 # Public sharing views
@@ -144,6 +152,16 @@ CloudStorage/
 - Storage items support hierarchical folder structure
 - Sharing system with flexible permission model
 - Optimized queries with proper indexing
+
+### Semantic Search Engine
+- **Vietnamese Language Support**: Comprehensive accent normalization covering 60+ characters
+- **Abbreviation Recognition**: Understands 25+ common business abbreviations (T10, BC, TC, HD, etc.)
+- **Token-Based Matching**: Intelligent word segmentation and comparison
+- **Similarity Scoring**: Jaccard coefficient with substring and number bonuses
+- **Flexible Separators**: Handles underscores, hyphens, dots, and mixed formats
+- **Example**: Search "Báo cáo tài chính tháng 10" finds "Bao_cao_tai_chinh_T10.pdf"
+
+See [SEMANTIC_SEARCH.md](SEMANTIC_SEARCH.md) for detailed documentation.
 
 ## Configuration
 
@@ -224,3 +242,54 @@ dotnet run
 ```
 
 Enjoy using CloudStorage! 🚀
+\n+## 🤖 AI Features (Gemini Integration)
+
+### Overview
+The application integrates Google Gemini (`gemini-2.5-flash`) to provide:
+- Prompt-based folder & file generation
+- Automatic file classification on upload (Images, Documents, Audio, Video, Archives, Code, Other)
+
+### Configuration
+Do NOT hard-code your API key. Use User Secrets or environment variables.
+
+Using .NET User Secrets (development only):
+```bash
+dotnet user-secrets init
+dotnet user-secrets set "Gemini:ApiKey" "YOUR_REAL_API_KEY"
+```
+Ensure `appsettings.Development.json` contains the placeholder section:
+```json
+"Gemini": { "ApiKey": "YOUR_GEMINI_API_KEY" }
+```
+In production, set an environment variable:
+```powershell
+$Env:Gemini__ApiKey="YOUR_REAL_API_KEY"
+```
+
+### Endpoints / Usage
+| Feature | URL | Description |
+|---------|-----|-------------|
+| AI Folder Generation | `/Storage/AICreateFolder` | Enter a prompt (e.g., "tạo một folder trong đó có chứa 10 file text được đặt tên từ 1 - 10") to auto-create a folder and files. |
+| Auto Classification | Upload any file at root | AI classifies and moves it into category folder automatically (created if missing). |
+
+### Folder Generation Prompt Format
+You can request structured folder contents, e.g.:
+```
+tạo một folder đặt tên "Tutorial" trong đó có 3 file text: intro.txt, steps.txt, summary.txt
+```
+AI will output a JSON plan; the server converts it into physical folder + files.
+
+### Error Handling & Fallbacks
+- If Gemini response parsing fails, the system falls back to minimal defaults.
+- Classification defaults to `Other` if AI call fails.
+
+### Security Notes
+- Keep the API key secret and never commit it.
+- Rate limit / caching can be added around AI calls for efficiency.
+
+### Extending
+- Enhance classification with custom taxonomy.
+- Support more structured generation (Markdown, code snippets, etc.).
+- Add more AI-powered features for file organization.
+
+---

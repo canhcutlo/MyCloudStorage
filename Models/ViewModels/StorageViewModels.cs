@@ -25,6 +25,9 @@ namespace CloudStorage.Models.ViewModels
         public string Description { get; set; } = string.Empty;
 
         public bool IsPublic { get; set; } = false;
+
+        [Display(Name = "Auto-classify into folder")]
+        public bool AutoClassify { get; set; } = true;
     }
 
     public class CreateFolderViewModel
@@ -77,10 +80,34 @@ namespace CloudStorage.Models.ViewModels
 
     public class SearchViewModel
     {
-        [Required]
         public string Query { get; set; } = string.Empty;
         public StorageItemType? ItemType { get; set; }
         public IEnumerable<StorageItem> Results { get; set; } = new List<StorageItem>();
         public int TotalResults { get; set; }
+    }
+
+    // AI Feature ViewModels
+    public class AICreateFolderViewModel
+    {
+        [Required]
+        [StringLength(1000, MinimumLength = 10)]
+        [Display(Name = "AI Prompt")]
+        public string Prompt { get; set; } = string.Empty;
+
+        public int? ParentFolderId { get; set; }
+    }
+
+    public class EditShareViewModel
+    {
+        public int Id { get; set; }
+        public string ItemName { get; set; } = string.Empty;
+        public bool IsPublicLink { get; set; }
+        public string? SharedWithEmail { get; set; }
+        
+        [Required]
+        public SharePermission Permission { get; set; }
+        
+        [DataType(DataType.DateTime)]
+        public DateTime? ExpiresAt { get; set; }
     }
 }
