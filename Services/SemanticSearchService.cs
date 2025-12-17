@@ -9,6 +9,7 @@ namespace CloudStorage.Services
         string NormalizeVietnamese(string text);
         double CalculateSimilarity(string text1, string text2);
         bool IsSemanticMatch(string searchQuery, string targetText, double threshold = 0.6);
+        Task<string?> ExtractFileContentAsync(string filePath);
     }
 
     public class SemanticSearchService : ISemanticSearchService
@@ -195,6 +196,181 @@ namespace CloudStorage.Services
         {
             var similarity = CalculateSimilarity(searchQuery, targetText);
             return similarity >= threshold;
+        }
+
+        /// <summary>
+        /// Extracts text content from supported file formats for content-based search
+        /// </summary>
+        public async Task<string?> ExtractFileContentAsync(string filePath)
+        {
+            if (!File.Exists(filePath))
+                return null;
+
+            try
+            {
+                var extension = Path.GetExtension(filePath).ToLowerInvariant();
+
+                return extension switch
+                {
+                    ".txt" or ".md" or ".csv" or ".log" or ".json" or ".xml" or ".html" or ".css" or ".js" 
+                        => await ExtractTextFileAsync(filePath),
+                    ".pdf" => await ExtractPdfTextAsync(filePath),
+                    ".docx" => await ExtractDocxTextAsync(filePath),
+                    ".xlsx" or ".xls" => await ExtractExcelTextAsync(filePath),
+                    _ => null // Unsupported format
+                };
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private async Task<string> ExtractTextFileAsync(string filePath)
+        {
+            const int maxSize = 1024 * 1024; // 1MB limit
+            var fileInfo = new FileInfo(filePath);
+            if (fileInfo.Length > maxSize)
+            {
+                using var stream = File.OpenRead(filePath);
+                using var reader = new StreamReader(stream);
+                var buffer = new char[maxSize];
+                var bytesRead = await reader.ReadAsync(buffer, 0, maxSize);
+                return new string(buffer, 0, bytesRead);
+            }
+            return await File.ReadAllTextAsync(filePath);
+        }
+
+        private async Task<string> ExtractPdfTextAsync(string filePath)
+        {
+            using var document = UglyToad.PdfPig.PdfDocument.Open(filePath);
+            var sb = new StringBuilder();
+            var pageLimit = Math.Min(50, document.NumberOfPages); // Limit to first 50 pages
+            
+            for (int i = 1; i <= pageLimit; i++)
+            {
+                var page = document.GetPage(i);
+                sb.AppendLine(page.Text);
+                if (sb.Length > 100000) break; // 100KB limit
+            }
+            return sb.ToString();
+        }
+
+        private async Task<string> ExtractDocxTextAsync(string filePath)
+        {
+            using var stream = File.OpenRead(filePath);
+            var document = new NPOI.XWPF.UserModel.XWPFDocument(stream);
+            var sb = new StringBuilder();
+            
+            foreach (var paragraph in document.Paragraphs)
+            {
+                sb.AppendLine(paragraph.Text);
+                if (sb.Length > 100000) break;
+            }
+            
+            foreach (var table in document.Tables)
+            {
+                foreach (var row in table.Rows)
+                {
+                    foreach (var cell in row.GetTableCells())
+                    {
+                        sb.Append(cell.GetText()).Append(" ");
+                    }
+                    sb.AppendLine();
+                    if (sb.Length > 100000) break;
+                }
+                if (sb.Length > 100000) break;
+            }
+            
+            return sb.ToString();
+        }
+
+        private async Task<string> ExtractExcelTextAsync(string filePath)
+        {
+            var sb = new StringBuilder();
+            using var stream = File.OpenRead(filePath);
+            
+            NPOI.SS.UserModel.IWorkbook workbook;
+            if (filePath.EndsWith(".xlsx"))
+                workbook = new NPOI.XSSF.UserModel.XSSFWorkbook(stream);
+            else
+                workbook = new NPOI.HSSF.UserModel.HSSFWorkbook(stream);
+            
+            var sheetLimit = Math.Min(5, workbook.NumberOfSheets);
+            for (int s = 0; s < sheetLimit; s++)
+            {
+                var sheet = workbook.GetSheetAt(s);
+                var rowLimit = Math.Min(200, sheet.LastRowNum + 1);
+                
+                for (int r = 0; r < rowLimit; r++)
+                {
+                    var row = sheet.GetRow(r);
+                    if (row == null) continue;
+                    
+                    for (int c = 0; c < row.LastCellNum; c++)
+                    {
+                        var cell = row.GetCell(c);
+                        if (cell != null)
+                        {
+                            sb.Append(GetCellValueAsString(cell)).Append(" ");
+                        }
+                    }
+                    sb.AppendLine();
+                    if (sb.Length > 100000) break;
+                }
+                if (sb.Length > 100000) break;
+            }
+            
+            return sb.ToString();
+        }
+
+        private string GetCellValueAsString(NPOI.SS.UserModel.ICell cell)
+        {
+            if (cell == null) return string.Empty;
+            
+            try
+            {
+                switch (cell.CellType)
+                {
+                    case NPOI.SS.UserModel.CellType.String:
+                        return cell.StringCellValue ?? string.Empty;
+                    
+                    case NPOI.SS.UserModel.CellType.Numeric:
+                        if (NPOI.SS.UserModel.DateUtil.IsCellDateFormatted(cell))
+                        {
+                            var dateValue = cell.DateCellValue;
+                            return string.Format(System.Globalization.CultureInfo.InvariantCulture, "{0:yyyy-MM-dd}", dateValue);
+                        }
+                        return cell.NumericCellValue.ToString();
+                    
+                    case NPOI.SS.UserModel.CellType.Boolean:
+                        return cell.BooleanCellValue ? "TRUE" : "FALSE";
+                    
+                    case NPOI.SS.UserModel.CellType.Formula:
+                        try
+                        {
+                            return cell.NumericCellValue.ToString();
+                        }
+                        catch
+                        {
+                            try
+                            {
+                                return cell.StringCellValue ?? string.Empty;
+                            }
+                            catch
+                            {
+                                return string.Empty;
+                            }
+                        }
+                    
+                    default:
+                        return string.Empty;
+                }
+            }
+            catch
+            {
+                return string.Empty;
+            }
         }
     }
 }

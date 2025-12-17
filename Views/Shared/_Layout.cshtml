@@ -7,11 +7,25 @@
     <script type="importmap"></script>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/share-modal.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/CloudStorage.styles.css" asp-append-version="true" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" />
 </head>
 <body>
+    @{
+        var isAuthPage = ViewContext.RouteData.Values["controller"]?.ToString() == "Account" && 
+                         (ViewContext.RouteData.Values["action"]?.ToString() == "Login" || 
+                          ViewContext.RouteData.Values["action"]?.ToString() == "Register" ||
+                          ViewContext.RouteData.Values["action"]?.ToString() == "ForgotPassword" ||
+                          ViewContext.RouteData.Values["action"]?.ToString() == "ForgotPasswordConfirmation" ||
+                          ViewContext.RouteData.Values["action"]?.ToString() == "ResetPassword" ||
+                          ViewContext.RouteData.Values["action"]?.ToString() == "ResetPasswordConfirmation" ||
+                          ViewContext.RouteData.Values["action"]?.ToString() == "ResetPasswordError");
+    }
+
+    @if (!isAuthPage)
+    {
     <header>
         <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-dark bg-primary border-bottom box-shadow mb-3">
             <div class="container-fluid">
@@ -103,9 +117,22 @@
             &copy; 2025 - CloudStorage - A secure cloud storage solution
         </div>
     </footer>
+    
+    @* Include Share Modal for authenticated users *@
+    @if (User.Identity?.IsAuthenticated == true)
+    {
+        @await Html.PartialAsync("_ShareModal")
+    }
+    }
+    else
+    {
+        @RenderBody()
+    }
+    
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
+    <script src="~/js/share-modal.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

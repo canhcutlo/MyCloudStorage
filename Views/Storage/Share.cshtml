@@ -67,17 +67,17 @@
                         <div class="mb-3">
                             <label asp-for="Permission" class="form-label fw-bold">Permission Level</label>
                             <select asp-for="Permission" class="form-select">
-                                <option value="@CloudStorage.Models.SharePermission.ViewOnly">
-                                    View Only - Can only view the item
+                                <option value="@CloudStorage.Models.SharePermission.Viewer">
+                                    Viewer - Can only view the item
                                 </option>
-                                <option value="@CloudStorage.Models.SharePermission.Download" selected>
-                                    Download - Can view and download
+                                <option value="@CloudStorage.Models.SharePermission.Commenter" selected>
+                                    Commenter - Can view and comment
                                 </option>
-                                <option value="@CloudStorage.Models.SharePermission.Edit">
-                                    Edit - Can view, download, and edit
+                                <option value="@CloudStorage.Models.SharePermission.Editor">
+                                    Editor - Can view, download, and edit
                                 </option>
-                                <option value="@CloudStorage.Models.SharePermission.FullAccess">
-                                    Full Access - Can view, download, edit, and delete
+                                <option value="@CloudStorage.Models.SharePermission.Owner">
+                                    Owner - Can view, download, edit, and delete
                                 </option>
                             </select>
                             <span asp-validation-for="Permission" class="text-danger"></span>

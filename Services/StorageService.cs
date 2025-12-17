@@ -6,7 +6,7 @@ namespace CloudStorage.Services
 {
     public interface IStorageService
     {
-        Task<IEnumerable<StorageItem>> GetUserItemsAsync(string userId, int? parentFolderId = null);
+        Task<IEnumerable<StorageItem>> GetUserItemsAsync(string userId, int? parentFolderId = null, string sortBy = "name", string sortOrder = "asc");
         Task<IEnumerable<StorageItem>> GetAllUserItemsAsync(string userId);
         Task<StorageItem?> GetItemAsync(int id, string userId);
         Task<StorageItem?> GetItemByIdAsync(int id);
@@ -40,16 +40,26 @@ namespace CloudStorage.Services
             _semanticSearchService = semanticSearchService;
         }
 
-        public async Task<IEnumerable<StorageItem>> GetUserItemsAsync(string userId, int? parentFolderId = null)
+        public async Task<IEnumerable<StorageItem>> GetUserItemsAsync(string userId, int? parentFolderId = null, string sortBy = "name", string sortOrder = "asc")
         {
-            return await _context.StorageItems
+            var query = _context.StorageItems
                 .Include(item => item.Shares)
                 .Where(item => item.OwnerId == userId && 
                               item.ParentFolderId == parentFolderId && 
-                              !item.IsDeleted)
-                .OrderBy(item => item.Type)
-                .ThenBy(item => item.Name)
-                .ToListAsync();
+                              !item.IsDeleted);
+
+            // Apply sorting
+            query = sortBy.ToLower() switch
+            {
+                "date" when sortOrder == "desc" => query.OrderByDescending(item => item.Type).ThenByDescending(item => item.CreatedAt),
+                "date" => query.OrderBy(item => item.Type).ThenBy(item => item.CreatedAt),
+                "size" when sortOrder == "desc" => query.OrderByDescending(item => item.Type).ThenByDescending(item => item.Size),
+                "size" => query.OrderBy(item => item.Type).ThenBy(item => item.Size),
+                "name" when sortOrder == "desc" => query.OrderByDescending(item => item.Type).ThenByDescending(item => item.Name),
+                _ => query.OrderBy(item => item.Type).ThenBy(item => item.Name) // default: name asc
+            };
+
+            return await query.ToListAsync();
         }
 
         public async Task<IEnumerable<StorageItem>> GetAllUserItemsAsync(string userId)
@@ -327,11 +337,55 @@ namespace CloudStorage.Services
                     descScore = _semanticSearchService.CalculateSimilarity(query, item.Description);
                 }
 
-                // Take the higher score
-                double finalScore = Math.Max(nameScore, descScore * 0.8); // Description weighted slightly lower
+                // Calculate similarity for file content (only for files with FilePath)
+                double contentScore = 0.0;
+                if (item.Type == StorageItemType.File && !string.IsNullOrEmpty(item.FilePath))
+                {
+                    try
+                    {
+                        var absolutePath = Path.IsPathRooted(item.FilePath)
+                            ? item.FilePath
+                            : Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", item.FilePath);
+                        
+                        var content = await _semanticSearchService.ExtractFileContentAsync(absolutePath);
+                        if (!string.IsNullOrWhiteSpace(content))
+                        {
+                            // Search in first 10000 characters for performance
+                            var searchableContent = content.Length > 10000 ? content.Substring(0, 10000) : content;
+                            
+                            // Normalize content: replace multiple whitespace/newlines with single space for better matching
+                            var normalizedContent = System.Text.RegularExpressions.Regex.Replace(searchableContent, @"\s+", " ");
+                            
+                            // Check for exact phrase match (case-insensitive, whitespace-normalized)
+                            if (normalizedContent.IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0)
+                            {
+                                contentScore = 1.0; // Perfect match for exact phrase
+                                _logger.LogInformation("Exact phrase match found in {FileName}", item.Name);
+                            }
+                            else
+                            {
+                                // Fall back to semantic similarity
+                                contentScore = _semanticSearchService.CalculateSimilarity(query, searchableContent);
+                            }
+                            
+                            _logger.LogInformation("{FileName} content score: {Score}", item.Name, contentScore);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to extract content for search from {FilePath}: {Error}", item.FilePath, ex.Message);
+                    }
+                }
 
-                // Include items with score >= 0.4 (lower threshold for better recall)
-                if (finalScore >= 0.4)
+                // Take the highest score (name > content > description)
+                // Content gets higher weight (0.95) to make content-based search more effective
+                double finalScore = Math.Max(Math.Max(nameScore, contentScore * 0.95), descScore * 0.7);
+
+                _logger.LogInformation("{FileName}: Name={NameScore}, Content={ContentScore}, Desc={DescScore}, Final={FinalScore}", 
+                    item.Name, nameScore, contentScore, descScore, finalScore);
+
+                // Include items with score >= 0.3 (lower threshold for better content recall)
+                if (finalScore >= 0.3)
                 {
                     results.Add((item, finalScore));
                 }

@@ -64,7 +64,7 @@ namespace CloudStorage.Models.ViewModels
         [EmailAddress]
         public string? ShareWithEmail { get; set; }
 
-        public SharePermission Permission { get; set; } = SharePermission.ViewOnly;
+        public SharePermission Permission { get; set; } = SharePermission.Viewer;
 
         [DataType(DataType.Date)]
         public DateTime? ExpiresAt { get; set; }

@@ -1,0 +1,146 @@
+@* Google Drive-like Share Modal *@
+
+<!-- Share Modal -->
+<div class="modal fade share-modal" id="shareModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="shareModalTitle">Share</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            
+            <!-- Tabs -->
+            <div class="share-tabs">
+                <button class="share-tab-btn active" onclick="showShareTab('people')">
+                    <i class="fas fa-user-plus me-2"></i>Share with people
+                </button>
+                <button class="share-tab-btn" onclick="showShareTab('link')">
+                    <i class="fas fa-link me-2"></i>Get link
+                </button>
+                <button class="share-tab-btn" onclick="showShareTab('access')">
+                    <i class="fas fa-users me-2"></i>Who has access
+                </button>
+            </div>
+            
+            <div class="modal-body">
+                <!-- Tab 1: Share with People -->
+                <div id="tab-people" class="share-tab-content active">
+                    <h6 class="mb-3">Add people</h6>
+                    
+                    <div class="share-input-group">
+                        <label for="shareEmail">Email address</label>
+                        <input type="email" 
+                               id="shareEmail" 
+                               class="form-control" 
+                               placeholder="Enter email address">
+                    </div>
+                    
+                    <div class="share-input-group">
+                        <label for="sharePermission">Permission</label>
+                        <select id="sharePermission" class="form-select">
+                            <option value="1">Viewer - Can view only</option>
+                            <option value="2">Commenter - Can view and comment</option>
+                            <option value="3">Editor - Can view and edit</option>
+                        </select>
+                    </div>
+                    
+                    <div class="share-options">
+                        <div class="share-checkbox">
+                            <input type="checkbox" id="allowDownload" checked>
+                            <label for="allowDownload">Allow download</label>
+                        </div>
+                        <div class="share-checkbox">
+                            <input type="checkbox" id="notifyPerson" checked>
+                            <label for="notifyPerson">Notify via email</label>
+                        </div>
+                    </div>
+                    
+                    <div class="share-input-group">
+                        <label for="shareMessage">Message (optional)</label>
+                        <textarea id="shareMessage" 
+                                  class="form-control" 
+                                  rows="3" 
+                                  placeholder="Add a message..."></textarea>
+                    </div>
+                    
+                    <div class="d-flex justify-content-end gap-2">
+                        <button type="button" class="btn btn-share-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-share-primary" onclick="shareWithPerson()">
+                            <i class="fas fa-share me-2"></i>Share
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Tab 2: Get Link -->
+                <div id="tab-link" class="share-tab-content">
+                    <h6 class="mb-3">Share link</h6>
+                    
+                    <div class="share-link-container">
+                        <div class="d-flex align-items-center mb-2">
+                            <i class="fas fa-link text-primary me-2" style="font-size: 24px;"></i>
+                            <div>
+                                <strong>Anyone with the link</strong>
+                                <p class="text-muted mb-0 small">Anyone on the internet with this link can view</p>
+                            </div>
+                        </div>
+                        
+                        <div id="shareLinkContainer" style="display: none;">
+                            <div class="share-link-input-group">
+                                <input type="text" 
+                                       id="shareLinkUrl" 
+                                       class="form-control" 
+                                       readonly>
+                                <button type="button" 
+                                        id="copyLinkBtn" 
+                                        class="btn btn-primary" 
+                                        onclick="copyShareLink()">
+                                    <i class="fas fa-copy me-2"></i>Copy link
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="share-link-settings">
+                            <label for="linkPermission">Link permission</label>
+                            <select id="linkPermission" class="form-select">
+                                <option value="1">Viewer - Can view only</option>
+                                <option value="2">Commenter - Can view and comment</option>
+                                <option value="3">Editor - Can view and edit</option>
+                            </select>
+                            
+                            <div class="share-checkbox mt-3">
+                                <input type="checkbox" id="linkAllowDownload" checked>
+                                <label for="linkAllowDownload">Allow download</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Tip:</strong> Share this link with anyone to give them access to your file.
+                    </div>
+                </div>
+                
+                <!-- Tab 3: Who Has Access -->
+                <div id="tab-access" class="share-tab-content">
+                    <h6 class="mb-3">People with access</h6>
+                    
+                    <div id="sharesList">
+                        <div class="text-center py-5">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-3 text-muted small">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Manage who can access this file and their permissions
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Hidden input for item ID -->
+<input type="hidden" id="shareModalItemId" />

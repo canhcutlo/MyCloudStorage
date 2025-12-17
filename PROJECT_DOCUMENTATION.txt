@@ -1,0 +1,612 @@
+================================================================================
+                    MYCLOUDSTORE PROJECT DOCUMENTATION
+================================================================================
+
+Project Name: MyCloudStorage
+Description: A cloud storage web application similar to Google Drive, TeraBox, 
+             and FShare with file management, sharing, AI features, and more.
+Framework: ASP.NET Core 9.0 MVC
+Database: Microsoft SQL Server (LocalDB)
+License: Not specified
+Created: 2025
+
+================================================================================
+                            TECHNOLOGY STACK
+================================================================================
+
+Backend Framework:
+- ASP.NET Core 9.0 MVC
+- C# with .NET 9.0
+- Entity Framework Core 9.0.10
+
+Database:
+- Microsoft SQL Server (LocalDB)
+- Connection: Server=(localdb)\mssqllocaldb;Database=CloudStorage
+- ORM: Entity Framework Core with Code-First approach
+
+Frontend:
+- Razor Pages (Server-side rendering)
+- Bootstrap 5 (Responsive UI framework)
+- Font Awesome 6.0.0 (Icons)
+- Bootstrap Icons 1.11.0
+- jQuery (Client-side scripting)
+- Custom CSS with gradient designs
+
+APIs & External Services:
+1. Google Gemini AI API (gemini-2.5-flash model)
+   - Used for AI-powered folder/file creation
+   - Semantic search with Vietnamese support
+   - Natural language processing
+
+2. Gmail SMTP API
+   - Used for sending password reset emails
+   - SMTP server: smtp.gmail.com:587
+   - App Password authentication
+
+NuGet Packages:
+- Microsoft.AspNetCore.Identity.EntityFrameworkCore 9.0.10
+- Microsoft.EntityFrameworkCore.SqlServer 9.0.10
+- Microsoft.EntityFrameworkCore.Tools 10.0.0
+- Google.Apis.Gmail.v1 1.72.0.3966
+
+================================================================================
+                     AUTHENTICATION & AUTHORIZATION
+================================================================================
+
+Authentication System: ASP.NET Core Identity
+
+User Registration:
+1. User provides: First Name, Last Name, Email, Password
+2. Password requirements:
+   - Minimum 6 characters
+   - Must contain at least 1 digit
+   - No special character requirement
+   - No uppercase/lowercase requirement
+3. Email must be unique in the system
+4. Default storage quota: 5GB (5,000,000,000 bytes)
+5. User account created with default settings:
+   - EmailConfirmed: true (skip email verification)
+   - Lockout enabled with 5 max failed attempts
+   - 30-day persistent cookie with sliding expiration
+
+User Login:
+1. Email and password authentication
+2. Optional "Remember Me" functionality
+3. Account lockout after 5 failed attempts (5-minute duration)
+4. Session management with cookie-based authentication
+5. Last login timestamp tracked
+
+Password Reset (Forgot Password):
+1. User requests password reset via email
+2. System generates secure random token (32 bytes, Base64 encoded)
+3. Token stored in PasswordResetTokens table with:
+   - 1-hour expiration
+   - One-time use flag
+   - User association
+4. Email sent via Gmail SMTP with reset link
+5. User clicks link and enters new password
+6. Token marked as used after successful reset
+
+Authorization:
+- Cookie-based authentication
+- Role-based access control using Identity roles
+- User must be authenticated to access storage features
+- Item-level permissions for file/folder access
+
+================================================================================
+                          DATABASE STRUCTURE
+================================================================================
+
+Database Name: CloudStorage
+Database Type: SQL Server LocalDB
+
+Main Tables:
+
+1. AspNetUsers (Identity Framework)
+   - Id (Primary Key)
+   - Email, UserName, PasswordHash
+   - FirstName, LastName
+   - StorageQuota (default: 5GB)
+   - UsedStorage (tracked in bytes)
+   - CreatedAt, LastLoginAt
+   - Identity fields (EmailConfirmed, PhoneNumber, etc.)
+
+2. StorageItems
+   - Id (Primary Key)
+   - Name, Description
+   - Type (File or Folder enum)
+   - Size (in bytes)
+   - FilePath (physical location)
+   - MimeType, FileHash (MD5)
+   - ParentFolderId (Foreign Key - self-referencing)
+   - OwnerId (Foreign Key to AspNetUsers)
+   - CreatedAt, ModifiedAt, DeletedAt
+   - IsPublic, IsDeleted (soft delete flag)
+   - Indexes: OwnerId, ParentFolderId, Unique(Name+ParentFolderId+OwnerId)
+
+3. SharedItems
+   - Id (Primary Key)
+   - StorageItemId (Foreign Key to StorageItems)
+   - SharedByUserId (Foreign Key to AspNetUsers)
+   - SharedWithUserId (Foreign Key to AspNetUsers, nullable)
+   - SharedWithEmail (for external sharing)
+   - Permission (View or Edit enum)
+   - AccessToken (unique token for public sharing)
+   - CreatedAt, ExpiresAt
+   - IsActive
+   - Index: AccessToken (unique)
+
+4. PasswordResetTokens
+   - Id (Primary Key)
+   - UserId (Foreign Key to AspNetUsers)
+   - Token (unique, 450 characters)
+   - CreatedAt, ExpiresAt
+   - IsUsed, UsedAt
+   - Indexes: Token (unique), UserId
+
+5. AspNetRoles, AspNetUserRoles, AspNetUserClaims, etc.
+   (Standard Identity Framework tables)
+
+Relationships:
+- One User → Many StorageItems (1:N)
+- One User → Many SharedItems (1:N)
+- One StorageItem → Many SharedItems (1:N)
+- One StorageItem → Many Child Items (1:N, self-referencing)
+- Cascade delete: User deletion removes all items
+- Restrict delete: Parent folder deletion restricted if has children
+
+================================================================================
+                         FILE STORAGE SYSTEM
+================================================================================
+
+Storage Architecture:
+
+Physical Storage Location:
+- Root folder: wwwroot/uploads/
+- User-specific folders: wwwroot/uploads/{userId}/
+- Each user has isolated directory
+
+File Organization:
+1. Hierarchical folder structure in database
+2. Physical files stored flat in user's directory
+3. Folder hierarchy maintained via ParentFolderId relationship
+4. File integrity verified using MD5 hash
+
+Storage Quota Management:
+- Default quota: 5GB per user
+- UsedStorage tracked in real-time
+- Upload blocked when quota exceeded
+- File size tracked in bytes
+- Quota not reduced when file soft-deleted (moved to trash)
+- Quota freed only on permanent deletion
+
+File Upload Process:
+1. Check user's available storage quota
+2. Validate file size and type
+3. Generate unique filename to prevent conflicts
+4. Calculate MD5 hash for integrity
+5. Save file to user's physical directory
+6. Create StorageItem record in database
+7. Update user's UsedStorage counter
+
+File Download Process:
+1. Verify user has access (owner or shared with)
+2. Retrieve file path from database
+3. Stream file to client with appropriate MIME type
+4. Set Content-Disposition header for download
+
+File Management Features:
+- Upload files (max 100MB per file)
+- Create folders and subfolders (unlimited depth)
+- Rename files and folders
+- Move items between folders
+- Delete items (soft delete to trash)
+- Restore from trash (within 15 days)
+- Permanent delete (frees storage quota)
+- Search by name and type
+- AI-powered folder creation
+
+Storage Separation Per User:
+1. Database Level:
+   - Every StorageItem has OwnerId field
+   - Queries always filter by userId
+   - Row-level security via OwnerId
+
+2. File System Level:
+   - Each user has unique folder: uploads/{userId}/
+   - Files never mixed between users
+   - Isolated physical storage
+
+3. Access Control:
+   - Users can only access their own items
+   - Shared items require explicit permission
+   - Public sharing uses access tokens
+
+4. Example Structure:
+   wwwroot/
+   └── uploads/
+       ├── user123-guid/
+       │   ├── document1.pdf
+       │   ├── photo1.jpg
+       │   └── video1.mp4
+       └── user456-guid/
+           ├── report.docx
+           └── image.png
+
+================================================================================
+                          KEY FEATURES
+================================================================================
+
+1. File Management:
+   - Upload files (multiple files supported)
+   - Create folders and nested subfolders
+   - Rename files and folders
+   - Move items between folders
+   - Download files
+   - Preview files (supported types)
+   - Search files by name and type
+   - View file properties
+
+2. Trash System:
+   - Soft delete files and folders
+   - 15-day retention period
+   - Restore deleted items
+   - Permanent delete option
+   - Automatic cleanup (background service)
+   - Storage quota not affected until permanent delete
+
+3. File Sharing:
+   - Share with registered users (by email)
+   - Share with external users (via link)
+   - Permission levels: View, Edit
+   - Access token generation
+   - Expiration dates
+   - Revoke sharing access
+
+4. AI Features (Google Gemini):
+   - AI-powered folder creation from natural language
+   - Automatic file generation with content
+   - Semantic search with Vietnamese support
+   - Example prompts:
+     * "Create 10 test files numbered test1 to test10"
+     * "Create project documentation with README and TODO"
+     * "Website template with HTML, CSS, JS"
+
+5. Search Functionality:
+   - Search by file/folder name
+   - Filter by type (File/Folder)
+   - Case-insensitive search
+   - Real-time search results
+   - Semantic search for intelligent results
+
+6. User Account Management:
+   - User registration with validation
+   - Login with remember me option
+   - Logout functionality
+   - Password reset via email
+   - Account lockout protection
+   - Storage quota tracking
+
+7. Modern UI/UX:
+   - Responsive design (mobile-friendly)
+   - Split-screen authentication pages
+   - Gradient color schemes
+   - Font Awesome icons
+   - Bootstrap 5 components
+   - Clean, modern interface
+
+8. Security Features:
+   - Password hashing (Identity default)
+   - CSRF protection (Anti-forgery tokens)
+   - SQL injection prevention (EF Core parameterized queries)
+   - File hash verification (MD5)
+   - Secure token generation for sharing
+   - Cookie-based authentication
+   - Access control on all endpoints
+
+9. Background Services:
+   - Trash cleanup service (runs daily)
+   - Automatic deletion of items older than 15 days
+   - Storage quota recalculation
+   - Hosted service implementation
+
+================================================================================
+                        PROJECT ARCHITECTURE
+================================================================================
+
+Pattern: Model-View-Controller (MVC)
+
+Directory Structure:
+- Controllers/: HTTP request handlers
+  * AccountController: Authentication and registration
+  * StorageController: File/folder management
+  * ShareController: Sharing functionality
+  * HomeController: Landing and static pages
+
+- Models/: Data entities
+  * ApplicationUser: Extended Identity user
+  * StorageItem: File/folder entity
+  * SharedItem: Sharing metadata
+  * PasswordResetToken: Password reset tokens
+  * ViewModels/: Data transfer objects for views
+
+- Views/: Razor view templates
+  * Account/: Login, Register, ForgotPassword, ResetPassword
+  * Storage/: File browser, Upload, Trash
+  * Shared/: Layout, Error pages
+
+- Services/: Business logic layer
+  * StorageService: File/folder operations
+  * FileStorageService: Physical file handling
+  * SharingService: Share management
+  * GeminiAIService: AI integration
+  * GmailService: Email sending
+  * SemanticSearchService: Intelligent search
+
+- Data/: Database context
+  * ApplicationDbContext: EF Core DbContext
+
+- wwwroot/: Static files
+  * css/: Stylesheets
+  * js/: Client-side scripts
+  * lib/: Third-party libraries
+  * uploads/: User file storage
+
+- Migrations/: Database migrations
+- BackgroundServices/: Hosted services
+
+Dependency Injection:
+- All services registered in Program.cs
+- Scoped lifetime for database services
+- Singleton for background services
+- Constructor injection pattern
+
+================================================================================
+                        SERVICE LAYER DETAILS
+================================================================================
+
+1. IStorageService / StorageService:
+   - File and folder CRUD operations
+   - Storage quota management
+   - Trash operations (soft delete, restore)
+   - Search functionality
+   - Access control validation
+   - Breadcrumb path generation
+
+2. IFileStorageService / FileStorageService:
+   - Physical file I/O operations
+   - File upload to disk
+   - File download from disk
+   - File deletion from disk
+   - MD5 hash calculation
+   - User directory management
+
+3. ISharingService / SharingService:
+   - Share creation and management
+   - Access token generation
+   - Permission validation
+   - Share expiration handling
+   - User and email-based sharing
+
+4. GeminiAIService:
+   - Integration with Google Gemini API
+   - Folder structure generation from prompts
+   - File content generation
+   - JSON parsing from AI responses
+   - Error handling and retry logic
+
+5. IEmailService / GmailService:
+   - SMTP email sending
+   - HTML email templates
+   - Password reset emails
+   - Beautiful gradient-styled emails
+   - Error logging
+
+6. ISemanticSearchService / SemanticSearchService:
+   - Intelligent search algorithm
+   - Vietnamese language support
+   - Keyword matching
+   - Result ranking
+
+7. TrashCleanupService (Background):
+   - Daily execution at midnight
+   - Finds items deleted >15 days ago
+   - Permanently deletes old items
+   - Frees storage quota
+   - Logs cleanup activities
+
+================================================================================
+                        CONFIGURATION SETTINGS
+================================================================================
+
+appsettings.json:
+
+ConnectionStrings:
+- DefaultConnection: SQL Server LocalDB connection string
+
+GeminiAI:
+- ApiKey: Google Gemini API key
+- Model: "gemini-2.5-flash"
+
+Gmail:
+- SenderEmail: Gmail address for sending emails
+- SenderName: "MyCloudStorage"
+- AppPassword: Gmail App Password (16 characters)
+
+AppUrl:
+- Base URL for application (used in email links)
+
+Logging:
+- Default: Information level
+- ASP.NET Core: Warning level
+
+File Upload Limits:
+- MaxRequestBodySize: 100MB per file
+
+Identity Settings (Program.cs):
+- Password: Min 6 chars, require digit
+- Lockout: 5 attempts, 5 minutes duration
+- Cookie: 30 days expiration, sliding
+
+================================================================================
+                        API ENDPOINTS
+================================================================================
+
+Account Controller:
+- GET  /Account/Register - Registration page
+- POST /Account/Register - Create new account
+- GET  /Account/Login - Login page
+- POST /Account/Login - Authenticate user
+- POST /Account/Logout - Sign out user
+- GET  /Account/ForgotPassword - Forgot password page
+- POST /Account/ForgotPassword - Send reset email
+- GET  /Account/ForgotPasswordConfirmation - Confirmation page
+- GET  /Account/ResetPassword?token={token} - Reset password page
+- POST /Account/ResetPassword - Update password
+- GET  /Account/ResetPasswordConfirmation - Success page
+- GET  /Account/ResetPasswordError - Error page
+
+Storage Controller:
+- GET  /Storage/Index?folderId={id} - Browse files
+- GET  /Storage/Upload - Upload page
+- POST /Storage/Upload - Upload files
+- GET  /Storage/CreateFolder - Create folder page
+- POST /Storage/CreateFolder - Create new folder
+- GET  /Storage/AICreateFolder - AI folder creation page
+- POST /Storage/AICreateFolder - AI generate folder
+- POST /Storage/Rename - Rename item
+- POST /Storage/Delete - Soft delete item
+- POST /Storage/Move - Move item to folder
+- GET  /Storage/Download/{id} - Download file
+- GET  /Storage/Search?query={q}&type={t} - Search files
+- GET  /Storage/Trash - View trash
+- POST /Storage/Restore - Restore from trash
+- POST /Storage/PermanentDelete - Permanent delete
+- GET  /Storage/AISearch?query={q} - Semantic search
+
+Share Controller:
+- GET  /Share/Share/{id} - Share page
+- POST /Share/CreateShare - Create share link
+- GET  /Share/SharedItems - View shared items
+- POST /Share/RevokeShare - Remove sharing
+- GET  /Share/Public/{token} - Access public share
+
+Home Controller:
+- GET  / or /Home/Index - Landing page
+- GET  /Home/Privacy - Privacy policy page
+
+================================================================================
+                        SECURITY CONSIDERATIONS
+================================================================================
+
+Implemented Security:
+1. ASP.NET Core Identity for authentication
+2. Cookie-based session management
+3. Anti-forgery tokens on all POST requests
+4. SQL injection prevention (EF Core parameterization)
+5. Password hashing (Identity PBKDF2)
+6. Account lockout protection
+7. Secure token generation (cryptographic random)
+8. File hash verification (MD5)
+9. User isolation (database and file system)
+10. Access control on all endpoints
+11. HTTPS redirection
+
+Recommendations for Production:
+1. Enable HTTPS with valid SSL certificate
+2. Implement rate limiting
+3. Add CAPTCHA to registration/login
+4. Enable email verification
+5. Implement two-factor authentication
+6. Add virus scanning for uploads
+7. Set up file encryption at rest
+8. Configure proper CORS policies
+9. Implement audit logging
+10. Regular security updates
+11. Database backup strategy
+12. Use Azure/AWS instead of LocalDB
+
+================================================================================
+                        DEPLOYMENT NOTES
+================================================================================
+
+Development Environment:
+- Visual Studio 2022 or VS Code
+- .NET 9.0 SDK
+- SQL Server LocalDB
+- Windows OS (PowerShell)
+
+Running Locally:
+1. Install .NET 9.0 SDK
+2. Clone repository
+3. Update appsettings.json with:
+   - Gmail credentials (SenderEmail, AppPassword)
+   - Gemini API key
+4. Run: dotnet restore
+5. Run: dotnet build
+6. Run: dotnet run
+7. Access: http://localhost:5248
+
+Database Setup:
+- Database auto-created on first run (EnsureCreated)
+- Migrations applied automatically
+- LocalDB connection string in appsettings.json
+
+Production Deployment:
+1. Update appsettings.json for production
+2. Change to SQL Server (not LocalDB)
+3. Configure proper connection string
+4. Enable HTTPS
+5. Set environment to Production
+6. Configure IIS or Azure App Service
+7. Set up file storage (Azure Blob, AWS S3)
+8. Configure email service
+9. Set up monitoring and logging
+10. Implement backup strategy
+
+================================================================================
+                        FUTURE ENHANCEMENTS
+================================================================================
+
+Potential Features:
+1. File versioning
+2. Real-time collaboration
+3. Office document preview
+4. Video/audio streaming
+5. Mobile application
+6. Two-factor authentication
+7. Advanced permissions (groups)
+8. File comments and annotations
+9. Activity logs and audit trail
+10. Integration with cloud storage providers
+11. Bulk operations
+12. Advanced search filters
+13. File compression
+14. Encrypted storage
+15. API for third-party integration
+
+Performance Improvements:
+1. Caching layer (Redis)
+2. CDN for static files
+3. Database indexing optimization
+4. Lazy loading for large folders
+5. Pagination for file lists
+6. Asynchronous file operations
+7. Background job queue
+8. Load balancing
+
+================================================================================
+                        CONTACT & SUPPORT
+================================================================================
+
+Project: MyCloudStorage
+Repository: https://github.com/canhcutlo/MyCloudStorage
+Developer: canhcutlo
+Email: trungthanhnguyenson@gmail.com
+
+Documentation Generated: December 8, 2025
+Version: 1.0.0
+
+================================================================================
+                            END OF DOCUMENTATION
+================================================================================

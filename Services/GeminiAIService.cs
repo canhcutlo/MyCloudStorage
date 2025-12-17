@@ -14,7 +14,7 @@ public class GeminiAIService
     {
         _httpClient = new HttpClient();
         _apiKey = configuration["GeminiAI:ApiKey"] ?? throw new InvalidOperationException("Gemini API Key not configured");
-        _model = configuration["GeminiAI:Model"] ?? "gemini-2.0-flash-exp";
+        _model = configuration["GeminiAI:Model"] ?? "gemini-2.5-flash";
         _logger = logger;
     }
 
@@ -35,11 +35,28 @@ public class GeminiAIService
                             new { text = prompt }
                         }
                     }
+                },
+                generationConfig = new
+                {
+                    temperature = 0.7,
+                    topK = 40,
+                    topP = 0.95,
+                    maxOutputTokens = 8192
+                },
+                safetySettings = new[]
+                {
+                    new { category = "HARM_CATEGORY_HARASSMENT", threshold = "BLOCK_NONE" },
+                    new { category = "HARM_CATEGORY_HATE_SPEECH", threshold = "BLOCK_NONE" },
+                    new { category = "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold = "BLOCK_NONE" },
+                    new { category = "HARM_CATEGORY_DANGEROUS_CONTENT", threshold = "BLOCK_NONE" }
                 }
             };
 
             var json = JsonSerializer.Serialize(requestBody);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            // Log the request for debugging
+            _logger.LogInformation($"Sending request to Gemini API. Prompt length: {prompt.Length} characters");
 
             var response = await _httpClient.PostAsync(url, content);
             var responseContent = await response.Content.ReadAsStringAsync();
@@ -64,6 +81,9 @@ public class GeminiAIService
                 .GetProperty("text")
                 .GetString();
 
+            // Log the response for debugging
+            _logger.LogInformation($"Gemini API response length: {text?.Length ?? 0} characters");
+
             return text ?? string.Empty;
         }
         catch (Exception ex)
@@ -77,40 +97,42 @@ public class GeminiAIService
     {
         try
         {
-            var systemPrompt = @"You are an AI assistant that helps create folders with files based on user requests.
+            var systemPrompt = $@"You are an AI assistant that helps create folders with files based on user requests.
 
 Analyze the user's prompt carefully and return ONLY a valid JSON object (no markdown, no extra text) with this EXACT format:
-{
+{{
   ""folderName"": ""descriptive_folder_name"",
   ""files"": [
-    {
+    {{
       ""fileName"": ""file1.ext"",
       ""content"": ""file content here""
-    },
-    {
+    }},
+    {{
       ""fileName"": ""file2.ext"",
       ""content"": ""file content here""
-    }
+    }}
   ]
-}
+}}
 
 CRITICAL RULES:
 1. Return ONLY the JSON object - NO markdown code blocks, NO explanations, NO other text
-2. folderName: Use descriptive name matching the request (e.g., 'Project_Report', 'Meeting_Notes', 'Website_Assets')
+2. folderName: Use descriptive name matching the request (e.g., 'Project_Report', 'Meeting_Notes', 'Test_Files')
 3. files: Create ALL requested files in the array
 4. fileName: Include proper extensions (.txt, .md, .html, .css, .js, .json, .csv, .xml, etc)
 5. content: Generate meaningful placeholder content relevant to the file type and request
-6. If user asks for multiple numbered files (e.g., 5 files), create all 5 in the array
+6. If user asks for multiple numbered files (e.g., ""10 test files""), create ALL 10 files in the array
 7. Make content useful - not just 'placeholder' or 'empty'
+8. IMPORTANT: Read the user's request CAREFULLY and create EXACTLY what they ask for
 
 Examples:
 - ""Create project documentation"" → folder: 'Project_Documentation', files: README.md, TODO.md, CHANGELOG.md
-- ""5 test files"" → folder: 'Test_Files', files: test1.txt through test5.txt
+- ""Create 10 test files numbered from test1.txt to test10.txt"" → folder: 'Test_Files', files: test1.txt, test2.txt, ... test10.txt
 - ""website template"" → folder: 'Website_Template', files: index.html, style.css, script.js
 
-User prompt: "" + userPrompt + @""
+USER'S REQUEST:
+{userPrompt}
 
-Remember: Return ONLY the JSON, nothing else!";
+Remember: Return ONLY the JSON object that matches EXACTLY what the user requested, nothing else!";
 
             var response = await GenerateContentAsync(systemPrompt);
             _logger.LogInformation("AI Response for folder creation: {Response}", response);

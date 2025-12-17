@@ -37,15 +37,21 @@
                                     <td>
                                         <i class="fas @(share.StorageItem?.Type == CloudStorage.Models.StorageItemType.Folder ? "fa-folder text-warning" : "fa-file text-primary") me-2"></i>
                                         @share.StorageItem?.Name
-                                        @if (!string.IsNullOrEmpty(share.AccessToken))
+                                        @if (string.IsNullOrEmpty(share.SharedWithUserId) && string.IsNullOrEmpty(share.SharedWithEmail))
                                         {
                                             <span class="badge bg-success ms-2">
                                                 <i class="fas fa-globe"></i> Public Link
                                             </span>
                                         }
+                                        else
+                                        {
+                                            <span class="badge bg-info ms-2">
+                                                <i class="fas fa-user"></i> Private
+                                            </span>
+                                        }
                                     </td>
                                     <td>
-                                        @if (!string.IsNullOrEmpty(share.AccessToken))
+                                        @if (string.IsNullOrEmpty(share.SharedWithUserId) && string.IsNullOrEmpty(share.SharedWithEmail))
                                         {
                                             <span class="text-muted">Anyone with link</span>
                                         }
@@ -170,7 +176,7 @@
                                                 <i class="fas fa-folder-open"></i> Open
                                             </a>
                                         }
-                                        else if (share.Permission >= CloudStorage.Models.SharePermission.Download)
+                                        else if (share.Permission >= CloudStorage.Models.SharePermission.Viewer)
                                         {
                                             <a asp-controller="Storage" 
                                                asp-action="Download" 

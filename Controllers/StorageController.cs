@@ -34,11 +34,43 @@ namespace CloudStorage.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> Index(int? folderId)
+        public async Task<IActionResult> Index(int? folderId, string sortBy = "name", string sortOrder = "asc")
         {
             var userId = _userManager.GetUserId(User)!;
             
-            var items = await _storageService.GetUserItemsAsync(userId, folderId);
+            IEnumerable<StorageItem> items;
+            
+            // Check if accessing a shared folder
+            if (folderId.HasValue)
+            {
+                var folder = await _storageService.GetItemByIdAsync(folderId.Value);
+                if (folder != null && folder.OwnerId != userId)
+                {
+                    // This is a shared folder - verify user has permission
+                    var sharedWithMe = await _sharingService.GetSharedWithMeAsync(userId);
+                    var hasAccess = sharedWithMe.Any(s => s.StorageItemId == folderId.Value && s.IsActive);
+                    
+                    if (!hasAccess)
+                    {
+                        _logger.LogWarning("User {UserId} attempted to access folder {FolderId} without permission", userId, folderId);
+                        return Forbid();
+                    }
+                    
+                    // User has permission - get items owned by the folder owner
+                    items = await _storageService.GetUserItemsAsync(folder.OwnerId, folderId, sortBy, sortOrder);
+                }
+                else
+                {
+                    // User's own folder
+                    items = await _storageService.GetUserItemsAsync(userId, folderId, sortBy, sortOrder);
+                }
+            }
+            else
+            {
+                // Root level - only show user's own items
+                items = await _storageService.GetUserItemsAsync(userId, folderId, sortBy, sortOrder);
+            }
+            
             var currentFolder = folderId.HasValue ? 
                 await _storageService.GetFolderPathAsync(folderId.Value, userId) : null;
             
@@ -58,6 +90,8 @@ namespace CloudStorage.Controllers
 
             ViewBag.CurrentFolderId = folderId;
             ViewBag.Breadcrumbs = breadcrumbs;
+            ViewBag.SortBy = sortBy;
+            ViewBag.SortOrder = sortOrder;
 
             return View(viewModel);
         }
@@ -307,8 +341,9 @@ namespace CloudStorage.Controllers
 
             try
             {
-                var item = await _context.StorageItems
-                    .FirstOrDefaultAsync(i => i.Id == id && i.OwnerId == userId && i.IsDeleted);
+                // Get the deleted items to find this one
+                var deletedItems = await _storageService.GetDeletedItemsAsync(userId);
+                var item = deletedItems.FirstOrDefault(i => i.Id == id);
                 
                 if (item == null)
                 {

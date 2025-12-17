@@ -52,6 +52,8 @@ builder.Services.AddScoped<IFileStorageService, FileStorageService>();
 builder.Services.AddScoped<ISharingService, SharingService>();
 builder.Services.AddScoped<ISemanticSearchService, SemanticSearchService>();
 builder.Services.AddScoped<GeminiAIService>();
+builder.Services.AddScoped<IEmailService, GmailService>();
+builder.Services.AddScoped<IDocumentPreviewService, DocumentPreviewService>();
 
 // Register background services
 builder.Services.AddHostedService<TrashCleanupService>();

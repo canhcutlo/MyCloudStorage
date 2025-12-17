@@ -12,6 +12,7 @@ namespace CloudStorage.Data
 
         public DbSet<StorageItem> StorageItems { get; set; }
         public DbSet<SharedItem> SharedItems { get; set; }
+        public DbSet<PasswordResetToken> PasswordResetTokens { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -65,6 +66,17 @@ namespace CloudStorage.Data
                 .HasIndex(s => s.AccessToken)
                 .IsUnique()
                 .HasFilter("[AccessToken] IS NOT NULL");
+
+            // Configure PasswordResetToken relationships
+            builder.Entity<PasswordResetToken>()
+                .HasOne(p => p.User)
+                .WithMany()
+                .HasForeignKey(p => p.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<PasswordResetToken>()
+                .HasIndex(p => p.Token)
+                .IsUnique();
         }
     }
 }

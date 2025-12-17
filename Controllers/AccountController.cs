@@ -2,6 +2,10 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using CloudStorage.Models;
 using CloudStorage.Models.ViewModels;
+using CloudStorage.Services;
+using CloudStorage.Data;
+using Microsoft.EntityFrameworkCore;
+using System.Security.Cryptography;
 
 namespace CloudStorage.Controllers
 {
@@ -10,15 +14,21 @@ namespace CloudStorage.Controllers
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly ILogger<AccountController> _logger;
+        private readonly IEmailService _emailService;
+        private readonly ApplicationDbContext _context;
 
         public AccountController(
             UserManager<ApplicationUser> userManager,
             SignInManager<ApplicationUser> signInManager,
-            ILogger<AccountController> logger)
+            ILogger<AccountController> logger,
+            IEmailService emailService,
+            ApplicationDbContext context)
         {
             _userManager = userManager;
             _signInManager = signInManager;
             _logger = logger;
+            _emailService = emailService;
+            _context = context;
         }
 
         [HttpGet]
@@ -124,8 +134,18 @@ namespace CloudStorage.Controllers
         }
 
         [HttpGet]
+        public IActionResult AccessDenied()
+        {
+            return View();
+        }
+
+        [HttpGet]
         public IActionResult ForgotPassword()
         {
+            if (User.Identity?.IsAuthenticated == true)
+            {
+                return RedirectToAction("Index", "Storage");
+            }
             return View();
         }
 
@@ -136,15 +156,43 @@ namespace CloudStorage.Controllers
             if (ModelState.IsValid)
             {
                 var user = await _userManager.FindByEmailAsync(model.Email);
+                
+                // Don't reveal that the user does not exist
                 if (user == null)
                 {
-                    // Don't reveal that the user does not exist
                     return RedirectToAction(nameof(ForgotPasswordConfirmation));
                 }
 
-                // For this demo, we'll just show a confirmation message
-                // In a real app, you would send an email with a password reset link
-                _logger.LogInformation("Password reset requested for user {Email}", model.Email);
+                // Generate reset token
+                var token = GenerateSecureToken();
+                var resetToken = new PasswordResetToken
+                {
+                    UserId = user.Id,
+                    Token = token,
+                    CreatedAt = DateTime.UtcNow,
+                    ExpiresAt = DateTime.UtcNow.AddHours(1),
+                    IsUsed = false
+                };
+
+                _context.PasswordResetTokens.Add(resetToken);
+                await _context.SaveChangesAsync();
+
+                // Send email
+                try
+                {
+                    await _emailService.SendPasswordResetEmailAsync(
+                        user.Email!,
+                        $"{user.FirstName} {user.LastName}".Trim(),
+                        token
+                    );
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to send password reset email");
+                    ModelState.AddModelError("", "Failed to send password reset email. Please try again later.");
+                    return View(model);
+                }
+
                 return RedirectToAction(nameof(ForgotPasswordConfirmation));
             }
 
@@ -158,9 +206,87 @@ namespace CloudStorage.Controllers
         }
 
         [HttpGet]
-        public IActionResult AccessDenied()
+        public async Task<IActionResult> ResetPassword(string token)
+        {
+            if (string.IsNullOrEmpty(token))
+            {
+                return RedirectToAction("Login");
+            }
+
+            var resetToken = await _context.PasswordResetTokens
+                .Include(t => t.User)
+                .FirstOrDefaultAsync(t => t.Token == token);
+
+            if (resetToken == null || resetToken.IsUsed || resetToken.ExpiresAt < DateTime.UtcNow)
+            {
+                ViewBag.ErrorMessage = "This password reset link is invalid or has expired.";
+                return View("ResetPasswordError");
+            }
+
+            var model = new ResetPasswordViewModel { Token = token };
+            return View(model);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ResetPassword(ResetPasswordViewModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                return View(model);
+            }
+
+            var resetToken = await _context.PasswordResetTokens
+                .Include(t => t.User)
+                .FirstOrDefaultAsync(t => t.Token == model.Token);
+
+            if (resetToken == null || resetToken.IsUsed || resetToken.ExpiresAt < DateTime.UtcNow)
+            {
+                ViewBag.ErrorMessage = "This password reset link is invalid or has expired.";
+                return View("ResetPasswordError");
+            }
+
+            var user = resetToken.User;
+            if (user == null)
+            {
+                ViewBag.ErrorMessage = "User not found.";
+                return View("ResetPasswordError");
+            }
+
+            // Reset password
+            var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+            var result = await _userManager.ResetPasswordAsync(user, token, model.NewPassword);
+
+            if (result.Succeeded)
+            {
+                // Mark token as used
+                resetToken.IsUsed = true;
+                resetToken.UsedAt = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
+
+                return RedirectToAction(nameof(ResetPasswordConfirmation));
+            }
+
+            foreach (var error in result.Errors)
+            {
+                ModelState.AddModelError("", error.Description);
+            }
+
+            return View(model);
+        }
+
+        [HttpGet]
+        public IActionResult ResetPasswordConfirmation()
         {
             return View();
+        }
+
+        private string GenerateSecureToken()
+        {
+            var bytes = new byte[32];
+            using var rng = RandomNumberGenerator.Create();
+            rng.GetBytes(bytes);
+            return Convert.ToBase64String(bytes).Replace("+", "-").Replace("/", "_").Replace("=", "");
         }
 
         private IActionResult RedirectToLocal(string? returnUrl)

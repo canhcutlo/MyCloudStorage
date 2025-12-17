@@ -29,6 +29,14 @@ namespace CloudStorage.Models
         public DateTime? ExpiresAt { get; set; }
 
         public bool IsActive { get; set; } = true;
+        
+        // Google Drive-like features
+        public bool AllowDownload { get; set; } = true; // Can viewers/commenters download
+        public bool Notify { get; set; } = true; // Send email notification when sharing
+        public bool NotificationSent { get; set; } = false; // Track if notification was sent
+        public DateTime? LastAccessedAt { get; set; } // Track when share was last accessed
+        public int AccessCount { get; set; } = 0; // Number of times accessed
+        public string? Message { get; set; } // Optional message when sharing
 
         // Navigation properties
         [ForeignKey("StorageItemId")]
@@ -43,9 +51,9 @@ namespace CloudStorage.Models
 
     public enum SharePermission
     {
-        ViewOnly = 1,
-        Download = 2,
-        Edit = 3,
-        FullAccess = 4
+        Viewer = 1,      // Can only view (like Google Drive Viewer)
+        Commenter = 2,   // Can view and comment (future feature)
+        Editor = 3,      // Can view, comment, and edit
+        Owner = 4        // Full access (rarely used for shares)
     }
 }
