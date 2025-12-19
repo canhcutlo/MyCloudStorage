@@ -77,6 +77,29 @@ namespace CloudStorage.Controllers
             var breadcrumbs = await _storageService.GetBreadcrumbPathAsync(folderId, userId);
             var user = await _userManager.FindByIdAsync(userId);
 
+            // Check edit permissions for each item
+            var itemEditPermissions = new Dictionary<int, bool>();
+            foreach (var item in items)
+            {
+                itemEditPermissions[item.Id] = item.OwnerId == userId || 
+                    await _storageService.CanUserEditItemAsync(item.Id, userId);
+            }
+
+            // Check if user can edit current folder (for upload/create actions)
+            bool canEditCurrentFolder = true;
+            if (folderId.HasValue)
+            {
+                var folderItem = await _storageService.GetItemByIdAsync(folderId.Value);
+                if (folderItem != null && folderItem.OwnerId != userId)
+                {
+                    canEditCurrentFolder = await _storageService.CanUserEditFolderAsync(folderId.Value, userId);
+                }
+            }
+
+            // Get favorite statuses for all items
+            var itemIds = items.Select(i => i.Id).ToList();
+            var favoriteStatuses = await _storageService.GetFavoriteStatusesAsync(itemIds, userId);
+
             var viewModel = new StorageViewModel
             {
                 Items = items,
@@ -85,7 +108,10 @@ namespace CloudStorage.Controllers
                 TotalUsedStorage = user?.UsedStorage ?? 0,
                 TotalStorageQuota = user?.StorageQuota ?? 0,
                 TotalFiles = items.Count(i => i.Type == StorageItemType.File),
-                TotalFolders = items.Count(i => i.Type == StorageItemType.Folder)
+                TotalFolders = items.Count(i => i.Type == StorageItemType.Folder),
+                ItemEditPermissions = itemEditPermissions,
+                CanEditCurrentFolder = canEditCurrentFolder,
+                ItemFavoriteStatuses = favoriteStatuses
             };
 
             ViewBag.CurrentFolderId = folderId;
@@ -119,16 +145,43 @@ namespace CloudStorage.Controllers
                 return BadRequest("User not found.");
             }
 
-            // Check storage quota
-            if (user.UsedStorage + model.File.Length > user.StorageQuota)
+            // Determine the owner of the target folder
+            string targetOwnerId = userId;
+            bool isUploadingToSharedFolder = false;
+
+            if (model.ParentFolderId.HasValue)
             {
-                ModelState.AddModelError("File", "File size exceeds your storage quota.");
+                var targetFolder = await _storageService.GetItemByIdAsync(model.ParentFolderId.Value);
+                if (targetFolder != null && targetFolder.OwnerId != userId)
+                {
+                    // Check if user has edit permission on the shared folder
+                    var canEdit = await _storageService.CanUserEditFolderAsync(model.ParentFolderId.Value, userId);
+                    if (!canEdit)
+                    {
+                        return Forbid();
+                    }
+                    targetOwnerId = targetFolder.OwnerId;
+                    isUploadingToSharedFolder = true;
+                }
+            }
+
+            // Check storage quota (use target folder owner's quota)
+            var targetUser = await _userManager.FindByIdAsync(targetOwnerId);
+            if (targetUser == null)
+            {
+                return BadRequest("Target user not found.");
+            }
+
+            if (targetUser.UsedStorage + model.File.Length > targetUser.StorageQuota)
+            {
+                ModelState.AddModelError("File", "File size exceeds the folder owner's storage quota.");
                 return View(model);
             }
 
             // Check if file with same name exists
-            var fileExists = await _storageService.ItemExistsAsync(
-                model.File.FileName, model.ParentFolderId, userId);
+            var fileExists = isUploadingToSharedFolder
+                ? await _storageService.ItemExistsInSharedFolderAsync(model.File.FileName, model.ParentFolderId)
+                : await _storageService.ItemExistsAsync(model.File.FileName, model.ParentFolderId, userId);
 
             if (fileExists)
             {
@@ -164,8 +217,8 @@ namespace CloudStorage.Controllers
                     targetFolderId = existingFolder.Id;
                 }
 
-                // Save physical file
-                var filePath = await _fileStorageService.SaveFileAsync(model.File, userId);
+                // Save physical file (use target owner ID for storage location)
+                var filePath = await _fileStorageService.SaveFileAsync(model.File, targetOwnerId);
                 
                 // Calculate file hash
                 var fileHash = "";
@@ -174,14 +227,14 @@ namespace CloudStorage.Controllers
                     fileHash = _fileStorageService.CalculateFileHash(stream);
                 }
 
-                // Save file record to database
+                // Save file record to database (use target owner ID)
                 var storageItem = await _storageService.CreateFileAsync(
                     model.File.FileName,
                     filePath,
                     model.File.Length,
                     _fileStorageService.GetMimeType(model.File.FileName),
                     fileHash,
-                    userId,
+                    targetOwnerId,
                     targetFolderId,
                     model.IsPublic,
                     model.Description);
@@ -216,12 +269,30 @@ namespace CloudStorage.Controllers
 
             var userId = _userManager.GetUserId(User)!;
 
+            // Determine the owner of the target folder
+            string targetOwnerId = userId;
+
+            if (model.ParentFolderId.HasValue)
+            {
+                var targetFolder = await _storageService.GetItemByIdAsync(model.ParentFolderId.Value);
+                if (targetFolder != null && targetFolder.OwnerId != userId)
+                {
+                    // Check if user has edit permission on the shared folder
+                    var canEdit = await _storageService.CanUserEditFolderAsync(model.ParentFolderId.Value, userId);
+                    if (!canEdit)
+                    {
+                        return Forbid();
+                    }
+                    targetOwnerId = targetFolder.OwnerId;
+                }
+            }
+
             try
             {
                 await _storageService.CreateFolderAsync(
                     model.Name, 
                     model.Description, 
-                    userId, 
+                    targetOwnerId, 
                     model.ParentFolderId, 
                     model.IsPublic);
 
@@ -278,14 +349,31 @@ namespace CloudStorage.Controllers
 
             try
             {
+                // First, try to get item as owner
                 var item = await _storageService.GetItemAsync(id, userId);
+                
+                // If not owner, check if user has edit permission on shared item
+                if (item == null)
+                {
+                    var sharedItem = await _storageService.GetItemByIdAsync(id);
+                    if (sharedItem != null)
+                    {
+                        var canEdit = await _storageService.CanUserEditItemAsync(id, userId);
+                        if (!canEdit)
+                        {
+                            return Forbid();
+                        }
+                        item = sharedItem;
+                    }
+                }
+
                 if (item == null)
                 {
                     return NotFound();
                 }
 
                 // Move to trash (soft delete) - physical file kept for 15 days
-                await _storageService.DeleteItemAsync(id, userId);
+                await _storageService.DeleteItemAsync(id, item.OwnerId);
                 TempData["SuccessMessage"] = $"{(item.Type == StorageItemType.File ? "File" : "Folder")} moved to trash!";
             }
             catch (Exception ex)
@@ -419,6 +507,21 @@ namespace CloudStorage.Controllers
             var userId = _userManager.GetUserId(User)!;
             var item = await _storageService.GetItemAsync(id, userId);
 
+            // If not owner, check if user has edit permission on shared item
+            if (item == null)
+            {
+                var sharedItem = await _storageService.GetItemByIdAsync(id);
+                if (sharedItem != null)
+                {
+                    var canEdit = await _storageService.CanUserEditItemAsync(id, userId);
+                    if (!canEdit)
+                    {
+                        return Forbid();
+                    }
+                    item = sharedItem;
+                }
+            }
+
             if (item == null)
             {
                 return NotFound();
@@ -447,7 +550,30 @@ namespace CloudStorage.Controllers
 
             try
             {
-                await _storageService.RenameItemAsync(model.Id, model.Name, model.Description, userId);
+                // First, try to get item as owner
+                var item = await _storageService.GetItemAsync(model.Id, userId);
+                
+                // If not owner, check if user has edit permission on shared item
+                string targetOwnerId = userId;
+                if (item == null)
+                {
+                    var sharedItem = await _storageService.GetItemByIdAsync(model.Id);
+                    if (sharedItem != null)
+                    {
+                        var canEdit = await _storageService.CanUserEditItemAsync(model.Id, userId);
+                        if (!canEdit)
+                        {
+                            return Forbid();
+                        }
+                        targetOwnerId = sharedItem.OwnerId;
+                    }
+                    else
+                    {
+                        return NotFound();
+                    }
+                }
+
+                await _storageService.RenameItemAsync(model.Id, model.Name, model.Description, targetOwnerId);
                 TempData["SuccessMessage"] = "Item renamed successfully!";
                 return RedirectToAction("Index");
             }
@@ -750,6 +876,64 @@ namespace CloudStorage.Controllers
                 
                 return View(model);
             }
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ToggleFavorite(int id, int? currentFolderId)
+        {
+            var userId = _userManager.GetUserId(User)!;
+
+            try
+            {
+                var success = await _storageService.ToggleFavoriteAsync(id, userId);
+                
+                if (success)
+                {
+                    TempData["SuccessMessage"] = "Favorite updated successfully!";
+                }
+                else
+                {
+                    TempData["ErrorMessage"] = "Failed to update favorite";
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error toggling favorite for item {ItemId} by user {UserId}", id, userId);
+                TempData["ErrorMessage"] = "An error occurred while updating favorite.";
+            }
+
+            return RedirectToAction("Index", new { folderId = currentFolderId });
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> Favorites()
+        {
+            var userId = _userManager.GetUserId(User)!;
+            var favorites = await _storageService.GetFavoritesAsync(userId);
+
+            // Get favorite statuses (all should be true, but for consistency)
+            var itemIds = favorites.Select(i => i.Id).ToList();
+            var favoriteStatuses = await _storageService.GetFavoriteStatusesAsync(itemIds, userId);
+
+            // Get edit permissions for each item
+            var itemEditPermissions = new Dictionary<int, bool>();
+            foreach (var item in favorites)
+            {
+                itemEditPermissions[item.Id] = item.OwnerId == userId || 
+                    await _storageService.CanUserEditItemAsync(item.Id, userId);
+            }
+
+            var viewModel = new StorageViewModel
+            {
+                Items = favorites,
+                TotalFiles = favorites.Count(i => i.Type == StorageItemType.File),
+                TotalFolders = favorites.Count(i => i.Type == StorageItemType.Folder),
+                ItemEditPermissions = itemEditPermissions,
+                ItemFavoriteStatuses = favoriteStatuses
+            };
+
+            return View(viewModel);
         }
 
 

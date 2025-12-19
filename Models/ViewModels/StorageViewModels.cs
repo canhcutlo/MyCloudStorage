@@ -12,6 +12,9 @@ namespace CloudStorage.Models.ViewModels
         public long TotalStorageQuota { get; set; }
         public int TotalFiles { get; set; }
         public int TotalFolders { get; set; }
+        public Dictionary<int, bool> ItemEditPermissions { get; set; } = new Dictionary<int, bool>();
+        public bool CanEditCurrentFolder { get; set; } = true;
+        public Dictionary<int, bool> ItemFavoriteStatuses { get; set; } = new Dictionary<int, bool>();
     }
 
     public class UploadFileViewModel

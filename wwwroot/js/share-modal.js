@@ -173,9 +173,66 @@ async function loadShareLink(itemId) {
         if (data.success && data.link) {
             document.getElementById('shareLinkUrl').value = data.link;
             document.getElementById('shareLinkContainer').style.display = 'block';
+        } else {
+            // No link exists yet - show button to create one
+            document.getElementById('shareLinkContainer').innerHTML = `
+                <button class="btn btn-primary mt-2" onclick="createPublicLink()">
+                    <i class="fas fa-link me-2"></i>Create Public Link
+                </button>
+            `;
+            document.getElementById('shareLinkContainer').style.display = 'block';
         }
     } catch (error) {
         console.error('Error loading share link:', error);
+    }
+}
+
+// Create public link
+async function createPublicLink() {
+    const permission = document.getElementById('linkPermission').value;
+    const allowDownload = document.getElementById('linkAllowDownload').checked;
+    const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+    
+    try {
+        const response = await fetch('/Share/CreatePublicLink', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'RequestVerificationToken': token
+            },
+            body: `itemId=${currentItemId}&permission=${permission}&allowDownload=${allowDownload}`
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Show the link
+            document.getElementById('shareLinkUrl').value = data.link;
+            document.getElementById('shareLinkContainer').innerHTML = `
+                <div class="share-link-input-group">
+                    <input type="text" 
+                           id="shareLinkUrl" 
+                           class="form-control" 
+                           value="${data.link}"
+                           readonly>
+                    <button type="button" 
+                            id="copyLinkBtn" 
+                            class="btn btn-primary" 
+                            onclick="copyShareLink()">
+                        <i class="fas fa-copy me-2"></i>Copy link
+                    </button>
+                </div>
+            `;
+            showAlert('Public link created successfully!', 'success');
+            
+            // Refresh shares list
+            loadExistingShares(currentItemId);
+        } else {
+            showAlert(data.message || 'Failed to create link', 'danger');
+        }
+    } catch (error) {
+        console.error('Error creating public link:', error);
+        showAlert('An error occurred', 'danger');
     }
 }
 

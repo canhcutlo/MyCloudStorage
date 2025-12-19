@@ -1,0 +1,197 @@
+@model IEnumerable<CloudStorage.Models.StorageItem>
+@{
+    ViewData["Title"] = "Shared Folder";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var sharedItem = ViewBag.SharedItem as CloudStorage.Models.SharedItem;
+    var rootItem = ViewBag.RootItem as CloudStorage.Models.StorageItem;
+    var token = ViewBag.Token as string;
+    var currentFolderId = ViewBag.CurrentFolderId as int?;
+    var breadcrumbs = ViewBag.Breadcrumbs as IEnumerable<CloudStorage.Models.StorageItem> ?? new List<CloudStorage.Models.StorageItem>();
+    var canEdit = ViewBag.CanEdit as bool? ?? false;
+    var rootItemName = rootItem?.Name ?? "Shared Folder";
+}
+
+<div class="container-fluid mt-4">
+    <!-- Share Info Banner -->
+    <div class="alert alert-info mb-3">
+        <div class="d-flex align-items-center">
+            <i class="fas fa-folder-open fa-2x me-3"></i>
+            <div class="flex-grow-1">
+                <h6 class="mb-1">Shared Folder: @rootItemName</h6>
+                <p class="mb-0 small">
+                    Shared by <strong>@(sharedItem?.SharedByUser?.FirstName ?? "Unknown") @(sharedItem?.SharedByUser?.LastName ?? "")</strong>
+                    @if (sharedItem?.ExpiresAt != null)
+                    {
+                        <span class="text-muted">• Expires: @sharedItem.ExpiresAt.Value.ToString("MMM dd, yyyy")</span>
+                    }
+                </p>
+            </div>
+            <div>
+                <span class="badge bg-@(canEdit ? "success" : "primary") me-2">
+                    @(canEdit ? "Editor" : "Viewer")
+                </span>
+                @if (sharedItem?.AllowDownload == true)
+                {
+                    <span class="badge bg-info">
+                        <i class="fas fa-download me-1"></i>Download Enabled
+                    </span>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Breadcrumb Navigation -->
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a asp-action="PublicShare" asp-route-token="@token">
+                    <i class="fas fa-folder me-1"></i>@rootItemName
+                </a>
+            </li>
+            @foreach (var folder in breadcrumbs.Skip(breadcrumbs.Count(b => b.Id == rootItem.Id)))
+            {
+                <li class="breadcrumb-item">
+                    <a asp-action="PublicShare" asp-route-token="@token" asp-route-folderId="@folder.Id">
+                        @folder.Name
+                    </a>
+                </li>
+            }
+        </ol>
+    </nav>
+
+    <!-- Folder Contents -->
+    <div class="card shadow-sm">
+        <div class="card-body">
+            @if (Model.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Type</th>
+                                <th>Size</th>
+                                <th>Modified</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in Model)
+                            {
+                                <tr>
+                                    <td>
+                                        @if (item.Type == CloudStorage.Models.StorageItemType.Folder)
+                                        {
+                                            <a asp-action="PublicShare" asp-route-token="@token" asp-route-folderId="@item.Id" class="text-decoration-none">
+                                                <i class="fas fa-folder text-warning me-2"></i>@item.Name
+                                            </a>
+                                        }
+                                        else
+                                        {
+                                            <i class="fas fa-file text-primary me-2"></i>@item.Name
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (item.Type == CloudStorage.Models.StorageItemType.Folder)
+                                        {
+                                            <span class="badge bg-secondary">Folder</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-primary">File</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (item.Type == CloudStorage.Models.StorageItemType.File)
+                                        {
+                                            @Math.Round(item.Size / 1024.0 / 1024.0, 2) <text>MB</text>
+                                        }
+                                        else
+                                        {
+                                            <text>-</text>
+                                        }
+                                    </td>
+                                    <td>@item.ModifiedAt.ToString("MMM dd, yyyy HH:mm")</td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            @if (item.Type == CloudStorage.Models.StorageItemType.File)
+                                            {
+                                                <a href="@Url.Action("Preview", new { token, itemId = item.Id })" 
+                                                   class="btn btn-outline-info" 
+                                                   target="_blank"
+                                                   title="Preview">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                                
+                                                @if (sharedItem?.AllowDownload == true)
+                                                {
+                                                    <a href="@Url.Action("DownloadFromFolder", new { token, itemId = item.Id })" 
+                                                       class="btn btn-outline-primary" 
+                                                       title="Download">
+                                                        <i class="fas fa-download"></i>
+                                                    </a>
+                                                }
+                                            }
+                                            else
+                                            {
+                                                <a asp-action="PublicShare" 
+                                                   asp-route-token="@token" 
+                                                   asp-route-folderId="@item.Id" 
+                                                   class="btn btn-outline-secondary"
+                                                   title="Open">
+                                                    <i class="fas fa-folder-open"></i>
+                                                </a>
+                                            }
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="text-center py-5">
+                    <i class="fas fa-folder-open fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">This folder is empty</h5>
+                </div>
+            }
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(sharedItem?.Message))
+    {
+        <div class="alert alert-light mt-3">
+            <i class="fas fa-comment-dots me-2"></i>
+            <strong>Message from @sharedItem.SharedByUser?.FirstName:</strong>
+            <p class="mb-0 mt-2">@sharedItem.Message</p>
+        </div>
+    }
+
+    <!-- Security Notice -->
+    <div class="alert alert-warning mt-3">
+        <i class="fas fa-shield-alt me-2"></i>
+        <strong>Security Note:</strong> This folder was shared with you via a link. Be cautious when accessing files from unknown sources.
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Copy link functionality
+        function copyShareLink() {
+            navigator.clipboard.writeText(window.location.href);
+            
+            // Show feedback
+            const btn = event.target.closest('button');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-check me-2"></i>Copied!';
+            btn.disabled = true;
+            
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }, 2000);
+        }
+    </script>
+}

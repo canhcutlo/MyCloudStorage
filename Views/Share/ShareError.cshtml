@@ -1,0 +1,29 @@
+@{
+    ViewData["Title"] = "Share Error";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-body text-center p-5">
+                    <i class="fas fa-exclamation-triangle fa-4x text-warning mb-4"></i>
+                    <h2 class="mb-3">Share Not Available</h2>
+                    <p class="text-muted mb-4">@ViewBag.ErrorMessage</p>
+                    <p class="text-muted">
+                        This could mean:
+                    </p>
+                    <ul class="text-start text-muted">
+                        <li>The link has expired</li>
+                        <li>The share has been revoked</li>
+                        <li>The link is invalid or malformed</li>
+                    </ul>
+                    <a href="/" class="btn btn-primary mt-3">
+                        <i class="fas fa-home me-2"></i>Go to Home
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -13,6 +13,7 @@ namespace CloudStorage.Data
         public DbSet<StorageItem> StorageItems { get; set; }
         public DbSet<SharedItem> SharedItems { get; set; }
         public DbSet<PasswordResetToken> PasswordResetTokens { get; set; }
+        public DbSet<Favorite> Favorites { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -76,6 +77,23 @@ namespace CloudStorage.Data
 
             builder.Entity<PasswordResetToken>()
                 .HasIndex(p => p.Token)
+                .IsUnique();
+
+            // Configure Favorite relationships
+            builder.Entity<Favorite>()
+                .HasOne(f => f.User)
+                .WithMany()
+                .HasForeignKey(f => f.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<Favorite>()
+                .HasOne(f => f.StorageItem)
+                .WithMany()
+                .HasForeignKey(f => f.StorageItemId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            builder.Entity<Favorite>()
+                .HasIndex(f => new { f.UserId, f.StorageItemId })
                 .IsUnique();
         }
     }

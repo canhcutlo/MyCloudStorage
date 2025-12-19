@@ -116,22 +116,16 @@
                                                 {
                                                     <a asp-action="Index" 
                                                        asp-route-folderId="@item.Id" 
-                                                       class="btn btn-sm btn-primary">
+                                                       class="btn btn-sm btn-primary"
+                                                       title="Open folder">
                                                         <i class="bi bi-folder-open"></i> Open
                                                     </a>
                                                 }
-                                                else
-                                                {
-                                                    <a asp-action="Download" 
-                                                       asp-route-id="@item.Id" 
-                                                       class="btn btn-sm btn-success">
-                                                        <i class="bi bi-download"></i> Download
-                                                    </a>
-                                                }
-                                                <a asp-action="Share" 
-                                                   asp-route-id="@item.Id" 
-                                                   class="btn btn-sm btn-info">
-                                                    <i class="fas fa-share-alt"></i>
+                                                <a asp-action="Index" 
+                                                   asp-route-folderId="@item.ParentFolderId" 
+                                                   class="btn btn-sm btn-info"
+                                                   title="Go to location">
+                                                    <i class="fas fa-folder-tree"></i> Location
                                                 </a>
                                             </div>
                                         </div>

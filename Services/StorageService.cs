@@ -20,11 +20,18 @@ namespace CloudStorage.Services
         Task<StorageItem?> GetFolderPathAsync(int folderId, string userId);
         Task<IEnumerable<StorageItem>> GetBreadcrumbPathAsync(int? folderId, string userId);
         Task<bool> CanUserAccessItemAsync(int itemId, string userId);
+        Task<bool> CanUserEditItemAsync(int itemId, string userId);
+        Task<bool> CanUserEditFolderAsync(int? folderId, string userId);
         Task<bool> ItemExistsAsync(string name, int? parentFolderId, string userId);
+        Task<bool> ItemExistsInSharedFolderAsync(string name, int? parentFolderId);
         Task<IEnumerable<StorageItem>> GetDeletedItemsAsync(string userId);
         Task<bool> RestoreItemAsync(int id, string userId);
         Task<bool> PermanentlyDeleteItemAsync(int id, string userId);
         Task<int> CleanupOldDeletedItemsAsync();
+        Task<bool> ToggleFavoriteAsync(int itemId, string userId);
+        Task<bool> IsFavoriteAsync(int itemId, string userId);
+        Task<IEnumerable<StorageItem>> GetFavoritesAsync(string userId);
+        Task<Dictionary<int, bool>> GetFavoriteStatusesAsync(IEnumerable<int> itemIds, string userId);
     }
 
     public class StorageService : IStorageService
@@ -458,12 +465,80 @@ namespace CloudStorage.Services
             return sharedItem != null;
         }
 
+        public async Task<bool> CanUserEditItemAsync(int itemId, string userId)
+        {
+            var item = await _context.StorageItems
+                .FirstOrDefaultAsync(i => i.Id == itemId && !i.IsDeleted);
+
+            if (item == null) return false;
+
+            // User owns the item
+            if (item.OwnerId == userId) return true;
+
+            // Check if item is shared with user with Editor or Owner permission
+            var sharedItem = await _context.SharedItems
+                .FirstOrDefaultAsync(s => s.StorageItemId == itemId && 
+                                        s.SharedWithUserId == userId && 
+                                        s.IsActive &&
+                                        (s.ExpiresAt == null || s.ExpiresAt > DateTime.UtcNow) &&
+                                        (s.Permission == SharePermission.Editor || s.Permission == SharePermission.Owner));
+
+            if (sharedItem != null) return true;
+
+            // Check if parent folder is shared with edit permission
+            if (item.ParentFolderId.HasValue)
+            {
+                return await CanUserEditFolderAsync(item.ParentFolderId.Value, userId);
+            }
+
+            return false;
+        }
+
+        public async Task<bool> CanUserEditFolderAsync(int? folderId, string userId)
+        {
+            if (!folderId.HasValue) return false;
+
+            var folder = await _context.StorageItems
+                .FirstOrDefaultAsync(i => i.Id == folderId.Value && !i.IsDeleted);
+
+            if (folder == null) return false;
+
+            // User owns the folder
+            if (folder.OwnerId == userId) return true;
+
+            // Check if folder is shared with user with Editor or Owner permission
+            var sharedFolder = await _context.SharedItems
+                .FirstOrDefaultAsync(s => s.StorageItemId == folderId.Value && 
+                                        s.SharedWithUserId == userId && 
+                                        s.IsActive &&
+                                        (s.ExpiresAt == null || s.ExpiresAt > DateTime.UtcNow) &&
+                                        (s.Permission == SharePermission.Editor || s.Permission == SharePermission.Owner));
+
+            if (sharedFolder != null) return true;
+
+            // Check parent folders recursively
+            if (folder.ParentFolderId.HasValue)
+            {
+                return await CanUserEditFolderAsync(folder.ParentFolderId.Value, userId);
+            }
+
+            return false;
+        }
+
         public async Task<bool> ItemExistsAsync(string name, int? parentFolderId, string userId)
         {
             return await _context.StorageItems
                 .AnyAsync(item => item.Name == name && 
                                  item.ParentFolderId == parentFolderId && 
                                  item.OwnerId == userId && 
+                                 !item.IsDeleted);
+        }
+
+        public async Task<bool> ItemExistsInSharedFolderAsync(string name, int? parentFolderId)
+        {
+            return await _context.StorageItems
+                .AnyAsync(item => item.Name == name && 
+                                 item.ParentFolderId == parentFolderId && 
                                  !item.IsDeleted);
         }
 
@@ -695,6 +770,76 @@ namespace CloudStorage.Services
                     await DeletePhysicalFilesAsync(subItem);
                 }
             }
+        }
+
+        public async Task<bool> ToggleFavoriteAsync(int itemId, string userId)
+        {
+            // Check if item exists and user can access it
+            var item = await _context.StorageItems
+                .FirstOrDefaultAsync(i => i.Id == itemId && !i.IsDeleted);
+
+            if (item == null) return false;
+
+            // Check if user has access to this item
+            var hasAccess = await CanUserAccessItemAsync(itemId, userId);
+            if (!hasAccess) return false;
+
+            // Check if already favorited
+            var existingFavorite = await _context.Favorites
+                .FirstOrDefaultAsync(f => f.UserId == userId && f.StorageItemId == itemId);
+
+            if (existingFavorite != null)
+            {
+                // Remove from favorites
+                _context.Favorites.Remove(existingFavorite);
+                _logger.LogInformation("Item {ItemId} removed from favorites by user {UserId}", itemId, userId);
+            }
+            else
+            {
+                // Add to favorites
+                var favorite = new Favorite
+                {
+                    UserId = userId,
+                    StorageItemId = itemId,
+                    CreatedAt = DateTime.UtcNow
+                };
+                _context.Favorites.Add(favorite);
+                _logger.LogInformation("Item {ItemId} added to favorites by user {UserId}", itemId, userId);
+            }
+
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+        public async Task<bool> IsFavoriteAsync(int itemId, string userId)
+        {
+            return await _context.Favorites
+                .AnyAsync(f => f.UserId == userId && f.StorageItemId == itemId);
+        }
+
+        public async Task<IEnumerable<StorageItem>> GetFavoritesAsync(string userId)
+        {
+            var favoriteIds = await _context.Favorites
+                .Where(f => f.UserId == userId)
+                .Select(f => f.StorageItemId)
+                .ToListAsync();
+
+            return await _context.StorageItems
+                .Include(item => item.Shares)
+                .Where(item => favoriteIds.Contains(item.Id) && !item.IsDeleted)
+                .OrderBy(item => item.Type)
+                .ThenBy(item => item.Name)
+                .ToListAsync();
+        }
+
+        public async Task<Dictionary<int, bool>> GetFavoriteStatusesAsync(IEnumerable<int> itemIds, string userId)
+        {
+            var favoriteItemIds = await _context.Favorites
+                .Where(f => f.UserId == userId && itemIds.Contains(f.StorageItemId))
+                .Select(f => f.StorageItemId)
+                .ToListAsync();
+
+            return itemIds.ToDictionary(id => id, id => favoriteItemIds.Contains(id));
         }
     }
 }

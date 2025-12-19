@@ -1,0 +1,122 @@
+@using System.IO
+@model CloudStorage.Models.StorageItem
+@{
+    ViewData["Title"] = Model.Name;
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var sharedItem = ViewBag.SharedItem as CloudStorage.Models.SharedItem;
+    var token = ViewBag.Token as string;
+    var canDownload = sharedItem?.AllowDownload ?? true;
+    var fileExtension = System.IO.Path.GetExtension(Model.Name)?.ToUpper() ?? "";
+}
+
+<div class="container mt-4">
+    <!-- Share Info Banner -->
+    <div class="alert alert-info">
+        <div class="d-flex align-items-center">
+            <i class="fas fa-share-alt fa-2x me-3"></i>
+            <div class="flex-grow-1">
+                <h6 class="mb-1">Shared File</h6>
+                <p class="mb-0 small">
+                    Shared by <strong>@(sharedItem?.SharedByUser?.FirstName ?? "Unknown") @(sharedItem?.SharedByUser?.LastName ?? "")</strong>
+                    @if (sharedItem?.ExpiresAt != null)
+                    {
+                        <span class="text-muted">• Expires: @sharedItem.ExpiresAt.Value.ToString("MMM dd, yyyy")</span>
+                    }
+                </p>
+            </div>
+            @if (sharedItem?.Permission != null)
+            {
+                <span class="badge bg-primary">
+                    @sharedItem.Permission.ToString()
+                </span>
+            }
+        </div>
+    </div>
+
+    <!-- File Details Card -->
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-8">
+                    <h3 class="mb-3">
+                        <i class="fas fa-file text-primary me-2"></i>
+                        @Model.Name
+                    </h3>
+                    
+                    @if (!string.IsNullOrEmpty(Model.Description))
+                    {
+                        <p class="text-muted mb-3">@Model.Description</p>
+                    }
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <small class="text-muted">Type:</small>
+                            <p class="mb-2">@Model.MimeType</p>
+                        </div>
+                        <div class="col-md-6">
+                            <small class="text-muted">Size:</small>
+                            <p class="mb-2">@Math.Round(Model.Size / 1024.0 / 1024.0, 2) MB</p>
+                        </div>
+                        <div class="col-md-6">
+                            <small class="text-muted">Created:</small>
+                            <p class="mb-2">@Model.CreatedAt.ToString("MMM dd, yyyy HH:mm")</p>
+                        </div>
+                        <div class="col-md-6">
+                            <small class="text-muted">Modified:</small>
+                            <p class="mb-2">@Model.ModifiedAt.ToString("MMM dd, yyyy HH:mm")</p>
+                        </div>
+                    </div>
+
+                    <div class="btn-group" role="group">
+                        <a asp-action="Preview" asp-route-token="@token" class="btn btn-outline-primary" target="_blank">
+                            <i class="fas fa-eye me-2"></i>Preview
+                        </a>
+                        @if (canDownload)
+                        {
+                            <a asp-action="Download" asp-route-token="@token" class="btn btn-primary">
+                                <i class="fas fa-download me-2"></i>Download
+                            </a>
+                        }
+                        else
+                        {
+                            <button class="btn btn-secondary" disabled title="Download not allowed">
+                                <i class="fas fa-download me-2"></i>Download Disabled
+                            </button>
+                        }
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <!-- File Icon/Preview -->
+                    <div class="text-center p-4 bg-light rounded">
+                        @if (Model.MimeType.StartsWith("image/"))
+                        {
+                            <img src="@Url.Action("Preview", new { token })" alt="@Model.Name" class="img-fluid rounded" style="max-height: 300px;" />
+                        }
+                        else
+                        {
+                            <i class="fas fa-file fa-5x text-primary mb-3"></i>
+                            <p class="text-muted">@fileExtension</p>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Security Notice -->
+    <div class="alert alert-warning mt-3">
+        <i class="fas fa-shield-alt me-2"></i>
+        <strong>Security Note:</strong> This file was shared with you via a link. Be cautious when opening files from unknown sources.
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Copy link functionality
+        function copyLink() {
+            navigator.clipboard.writeText(window.location.href);
+            alert('Link copied to clipboard!');
+        }
+    </script>
+}
