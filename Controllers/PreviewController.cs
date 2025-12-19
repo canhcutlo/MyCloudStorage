@@ -44,8 +44,9 @@ namespace CloudStorage.Controllers
                 return NotFound();
             }
 
-            // Check if user owns this file
-            if (item.OwnerId != userId)
+            // Check if user has access to this file (owner or shared with them)
+            var hasAccess = await _storageService.CanUserAccessItemAsync(id, userId);
+            if (!hasAccess)
             {
                 return Forbid();
             }
@@ -84,10 +85,11 @@ namespace CloudStorage.Controllers
                 _logger.LogInformation("GetPreview: Found item {ItemId}, Name={Name}, Type={Type}, FilePath={FilePath}", 
                     item.Id, item.Name, item.Type, item.FilePath);
 
-                // Check if user owns this file
-                if (item.OwnerId != userId)
+                // Check if user has access to this file (owner or shared with them)
+                var hasAccess = await _storageService.CanUserAccessItemAsync(id, userId);
+                if (!hasAccess)
                 {
-                    _logger.LogWarning("GetPreview: User {UserId} does not own item {ItemId}", userId, id);
+                    _logger.LogWarning("GetPreview: User {UserId} does not have access to item {ItemId}", userId, id);
                     return Forbid();
                 }
 

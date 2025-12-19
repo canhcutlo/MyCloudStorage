@@ -455,14 +455,22 @@ namespace CloudStorage.Services
             // Item is public
             if (item.IsPublic) return true;
 
-            // Item is shared with the user
+            // Item is shared with the user directly
             var sharedItem = await _context.SharedItems
                 .FirstOrDefaultAsync(s => s.StorageItemId == itemId && 
                                         s.SharedWithUserId == userId && 
                                         s.IsActive &&
                                         (s.ExpiresAt == null || s.ExpiresAt > DateTime.UtcNow));
 
-            return sharedItem != null;
+            if (sharedItem != null) return true;
+
+            // Check if any parent folder is shared with the user
+            if (item.ParentFolderId.HasValue)
+            {
+                return await CanUserAccessItemAsync(item.ParentFolderId.Value, userId);
+            }
+
+            return false;
         }
 
         public async Task<bool> CanUserEditItemAsync(int itemId, string userId)

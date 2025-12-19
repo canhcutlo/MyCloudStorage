@@ -316,11 +316,20 @@ namespace CloudStorage.Controllers
         public async Task<IActionResult> Download(int id)
         {
             var userId = _userManager.GetUserId(User)!;
-            var item = await _storageService.GetItemAsync(id, userId);
-
+            
+            // Get item by ID first
+            var item = await _storageService.GetItemByIdAsync(id);
+            
             if (item == null || item.Type != StorageItemType.File)
             {
                 return NotFound();
+            }
+            
+            // Check if user has access to this file (owner or shared with them)
+            var hasAccess = await _storageService.CanUserAccessItemAsync(id, userId);
+            if (!hasAccess)
+            {
+                return Forbid();
             }
 
             try
@@ -886,6 +895,22 @@ namespace CloudStorage.Controllers
 
             try
             {
+                // First check if the item exists
+                var item = await _storageService.GetItemByIdAsync(id);
+                if (item == null)
+                {
+                    TempData["ErrorMessage"] = "Item not found.";
+                    return RedirectToAction("Index", new { folderId = currentFolderId });
+                }
+
+                // Check if user has access to the item
+                var hasAccess = await _storageService.CanUserAccessItemAsync(id, userId);
+                if (!hasAccess)
+                {
+                    TempData["ErrorMessage"] = "You don't have permission to favorite this item.";
+                    return RedirectToAction("Index", new { folderId = currentFolderId });
+                }
+
                 var success = await _storageService.ToggleFavoriteAsync(id, userId);
                 
                 if (success)
