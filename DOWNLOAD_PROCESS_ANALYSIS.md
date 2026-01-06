@@ -253,11 +253,11 @@ public async Task<IActionResult> Download(string token)
 #### Share Permission Levels
 
 | Permission | AllowDownload | Can Download? |
-|-----------|---------------|---------------|
-| Viewer    | false         | ❌ No          |
-| Viewer    | true          | ✅ Yes         |
-| Editor    | Any           | ✅ Yes         |
-| Owner     | Any           | ✅ Yes         |
+|------------|---------------|---------------|
+| Viewer     | false         | ❌ No          |
+| Viewer     | true          | ✅ Yes         |
+| Editor     | Any           | ✅ Yes         |
+| Owner      | Any           | ✅ Yes         |
 
 ---
 
@@ -400,12 +400,12 @@ private async Task<bool> IsItemWithinSharedFolderAsync(int itemId, int sharedFol
 
 #### Security Checks
 
-1. **Token Validation**: Share token hợp lệ
-2. **Download Permission**: AllowDownload flag phải là true
+1. **Token Validation**: Share token must be valid (Share token hợp lệ)
+2. **Download Permission**: AllowDownload flag must be true (AllowDownload flag phải là true)
 3. **Folder Hierarchy Verification**: 
-   - File phải nằm trong cây thư mục được share
-   - Ngăn chặn download file ngoài phạm vi share
-4. **File Type Check**: Chỉ cho phép download files
+   - File must be within the shared folder tree (File phải nằm trong cây thư mục được share)
+   - Prevents downloading files outside share scope (Ngăn chặn download file ngoài phạm vi share)
+4. **File Type Check**: Only allows downloading files (Chỉ cho phép download files)
 
 #### Hierarchy Verification Algorithm
 
@@ -859,7 +859,7 @@ CREATE TABLE ActivityLogs (
 |----------|--------|------|---------|------------|
 | `/Storage/Download/{id}` | GET | Required | Download owned/shared file | Owner or has share |
 | `/Share/Download?token={token}` | GET | Optional | Download via public link | Valid token + AllowDownload |
-| `/Share/DownloadFromFolder?token={token}&itemId={id}` | GET | Optional | Download file from shared folder | Valid token + in hierarchy |
+| `/Share/DownloadFromFolder?token={token}&itemId={id}` | GET | Optional | Download file from shared folder | Valid token + file in hierarchy |
 | `/Version/Download/{id}` | GET | Required | Download file version | File owner only |
 | `/Preview/Download/{id}` | GET | Required | Download after preview | Owner or has share |
 
