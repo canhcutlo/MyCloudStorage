@@ -27,6 +27,9 @@ namespace CloudStorage.Services
         Task<Dictionary<string, object>> GetAccessInfoAsync(int shareId, string userId);
         Task SendShareNotificationAsync(SharedItem share);
         Task TrackAccessAsync(string token);
+        
+        // Group sharing methods
+        Task<(int SuccessCount, int FailedCount, List<string> FailedEmails)> ShareWithGroupAsync(int itemId, string sharedByUserId, int groupId, SharePermission permission, DateTime? expiresAt = null, bool allowDownload = true, bool notify = true, string? message = null);
     }
 
     public class SharingService : ISharingService
@@ -475,6 +478,83 @@ namespace CloudStorage.Services
             var tokenBytes = new byte[32];
             rng.GetBytes(tokenBytes);
             return Convert.ToBase64String(tokenBytes).Replace("+", "-").Replace("/", "_").Replace("=", "");
+        }
+
+        // Share an item with all members of a group
+        public async Task<(int SuccessCount, int FailedCount, List<string> FailedEmails)> ShareWithGroupAsync(
+            int itemId, 
+            string sharedByUserId, 
+            int groupId, 
+            SharePermission permission, 
+            DateTime? expiresAt = null, 
+            bool allowDownload = true, 
+            bool notify = true, 
+            string? message = null)
+        {
+            int successCount = 0;
+            int failedCount = 0;
+            var failedEmails = new List<string>();
+
+            try
+            {
+                // Verify the group exists and belongs to the user
+                var group = await _context.Groups
+                    .Include(g => g.Members)
+                    .FirstOrDefaultAsync(g => g.Id == groupId && g.OwnerId == sharedByUserId);
+
+                if (group == null)
+                {
+                    _logger.LogWarning("Group {GroupId} not found or not owned by user {UserId}", groupId, sharedByUserId);
+                    return (0, 0, new List<string> { "Group not found" });
+                }
+
+                // Verify the item exists and the user owns it
+                var item = await _context.StorageItems
+                    .FirstOrDefaultAsync(i => i.Id == itemId && i.OwnerId == sharedByUserId && !i.IsDeleted);
+
+                if (item == null)
+                {
+                    _logger.LogWarning("Item {ItemId} not found or not owned by user {UserId}", itemId, sharedByUserId);
+                    return (0, 0, new List<string> { "Item not found" });
+                }
+
+                // Share with each member of the group
+                foreach (var member in group.Members)
+                {
+                    try
+                    {
+                        await ShareItemAsync(
+                            itemId, 
+                            sharedByUserId, 
+                            member.Email, 
+                            permission, 
+                            expiresAt, 
+                            allowDownload, 
+                            notify, 
+                            message);
+
+                        successCount++;
+                        _logger.LogInformation("Shared item {ItemId} with group member {Email}", itemId, member.Email);
+                    }
+                    catch (Exception ex)
+                    {
+                        failedCount++;
+                        failedEmails.Add(member.Email);
+                        _logger.LogError(ex, "Failed to share item {ItemId} with group member {Email}", itemId, member.Email);
+                    }
+                }
+
+                _logger.LogInformation(
+                    "Shared item {ItemId} with group {GroupId}: {SuccessCount} succeeded, {FailedCount} failed", 
+                    itemId, groupId, successCount, failedCount);
+
+                return (successCount, failedCount, failedEmails);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sharing item {ItemId} with group {GroupId}", itemId, groupId);
+                return (successCount, failedCount, failedEmails);
+            }
         }
     }
 }

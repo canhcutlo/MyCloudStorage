@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using CloudStorage.Models;
 using CloudStorage.Models.ViewModels;
 using CloudStorage.Services;
+using CloudStorage.Data;
 
 namespace CloudStorage.Controllers
 {
@@ -13,24 +14,39 @@ namespace CloudStorage.Controllers
         private readonly IStorageService _storageService;
         private readonly IFileStorageService _fileStorageService;
         private readonly ISharingService _sharingService;
+        private readonly ICommentService _commentService;
+        private readonly IActivityService _activityService;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly ILogger<StorageController> _logger;
         private readonly GeminiAIService _aiService;
+        private readonly IFileVersionService _versionService;
+        private readonly ApplicationDbContext _context;
+        private readonly IWebHostEnvironment _environment;
 
         public StorageController(
             IStorageService storageService,
             IFileStorageService fileStorageService,
             ISharingService sharingService,
+            ICommentService commentService,
+            IActivityService activityService,
             UserManager<ApplicationUser> userManager,
             ILogger<StorageController> logger,
-            GeminiAIService aiService)
+            GeminiAIService aiService,
+            IFileVersionService versionService,
+            ApplicationDbContext context,
+            IWebHostEnvironment environment)
         {
             _storageService = storageService;
             _fileStorageService = fileStorageService;
             _sharingService = sharingService;
+            _commentService = commentService;
+            _activityService = activityService;
             _userManager = userManager;
             _logger = logger;
             _aiService = aiService;
+            _versionService = versionService;
+            _context = context;
+            _environment = environment;
         }
 
         [HttpGet]
@@ -239,6 +255,18 @@ namespace CloudStorage.Controllers
                     model.IsPublic,
                     model.Description);
 
+                // Log activity
+                var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+                var userAgent = HttpContext.Request.Headers["User-Agent"].ToString();
+                await _activityService.LogActivityAsync(
+                    storageItem.Id,
+                    userId,
+                    ActivityType.FileUploaded,
+                    $"Uploaded file: {model.File.FileName}",
+                    ipAddress,
+                    userAgent
+                );
+
                 TempData["SuccessMessage"] = model.AutoClassify && targetFolderId != model.ParentFolderId
                     ? $"File uploaded and auto-classified to '{categoryName}' folder!"
                     : "File uploaded successfully!";
@@ -248,6 +276,123 @@ namespace CloudStorage.Controllers
             {
                 _logger.LogError(ex, "Error uploading file {FileName} for user {UserId}", model.File.FileName, userId);
                 ModelState.AddModelError("", "An error occurred while uploading the file.");
+                return View(model);
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> Replace(int id)
+        {
+            var userId = _userManager.GetUserId(User)!;
+            var item = await _storageService.GetItemByIdAsync(id);
+
+            if (item == null || item.OwnerId != userId || item.Type != StorageItemType.File)
+            {
+                return NotFound();
+            }
+
+            return View(new ReplaceFileViewModel
+            {
+                ItemId = id,
+                ItemName = item.Name,
+                ParentFolderId = item.ParentFolderId
+            });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Replace(ReplaceFileViewModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                return View(model);
+            }
+
+            var userId = _userManager.GetUserId(User)!;
+            var item = await _storageService.GetItemByIdAsync(model.ItemId);
+
+            if (item == null || item.OwnerId != userId || item.Type != StorageItemType.File)
+            {
+                return NotFound();
+            }
+
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user == null)
+            {
+                return BadRequest("User not found.");
+            }
+
+            // Check storage quota (subtract old file size, add new file size)
+            var sizeDifference = model.File.Length - item.Size;
+            if (user.UsedStorage + sizeDifference > user.StorageQuota)
+            {
+                ModelState.AddModelError("File", "File size exceeds your storage quota.");
+                return View(model);
+            }
+
+            try
+            {
+                // Create a version of the current file before replacing
+                await _versionService.CreateVersionAsync(item, userId, model.ChangeDescription ?? "");
+
+                // Save new physical file
+                var oldFilePath = item.FilePath;
+                var newFilePath = await _fileStorageService.SaveFileAsync(model.File, userId);
+
+                // Calculate new file hash
+                string newFileHash;
+                using (var stream = model.File.OpenReadStream())
+                {
+                    newFileHash = _fileStorageService.CalculateFileHash(stream);
+                }
+
+                // Update item metadata
+                item.FilePath = newFilePath;
+                item.Size = model.File.Length;
+                item.FileHash = newFileHash;
+                item.MimeType = _fileStorageService.GetMimeType(model.File.FileName);
+                item.ModifiedAt = DateTime.UtcNow;
+
+                _context.StorageItems.Update(item);
+                await _context.SaveChangesAsync();
+
+                // Update user storage
+                user.UsedStorage += sizeDifference;
+                await _userManager.UpdateAsync(user);
+
+                // Delete old physical file
+                try
+                {
+                    var oldFileFullPath = Path.Combine(_environment.WebRootPath, "uploads", oldFilePath);
+                    if (System.IO.File.Exists(oldFileFullPath))
+                    {
+                        System.IO.File.Delete(oldFileFullPath);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to delete old file: {FilePath}", oldFilePath);
+                }
+
+                // Log activity
+                var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+                var userAgent = HttpContext.Request.Headers["User-Agent"].ToString();
+                await _activityService.LogActivityAsync(
+                    item.Id,
+                    userId,
+                    ActivityType.FileModified,
+                    $"Replaced file: {item.Name}",
+                    ipAddress,
+                    userAgent
+                );
+
+                TempData["SuccessMessage"] = "File replaced successfully! Previous version has been saved.";
+                return RedirectToAction("Index", new { folderId = item.ParentFolderId });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error replacing file {ItemId} for user {UserId}", model.ItemId, userId);
+                ModelState.AddModelError("", "An error occurred while replacing the file.");
                 return View(model);
             }
         }
@@ -335,6 +480,19 @@ namespace CloudStorage.Controllers
             try
             {
                 var fileBytes = await _fileStorageService.GetFileAsync(item.FilePath);
+                
+                // Log activity
+                var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+                var userAgent = HttpContext.Request.Headers["User-Agent"].ToString();
+                await _activityService.LogActivityAsync(
+                    item.Id,
+                    userId,
+                    ActivityType.FileDownloaded,
+                    $"Downloaded file: {item.Name}",
+                    ipAddress,
+                    userAgent
+                );
+                
                 return File(fileBytes, item.MimeType, item.Name);
             }
             catch (FileNotFoundException)
@@ -383,6 +541,19 @@ namespace CloudStorage.Controllers
 
                 // Move to trash (soft delete) - physical file kept for 15 days
                 await _storageService.DeleteItemAsync(id, item.OwnerId);
+                
+                // Log activity
+                var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+                var userAgent = HttpContext.Request.Headers["User-Agent"].ToString();
+                await _activityService.LogActivityAsync(
+                    item.Id,
+                    userId,
+                    ActivityType.FileDeleted,
+                    $"Deleted {item.Type.ToString().ToLower()}: {item.Name}",
+                    ipAddress,
+                    userAgent
+                );
+                
                 TempData["SuccessMessage"] = $"{(item.Type == StorageItemType.File ? "File" : "Folder")} moved to trash!";
             }
             catch (Exception ex)
@@ -787,6 +958,33 @@ namespace CloudStorage.Controllers
             }
         }
 
+        // Share with group
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ShareWithGroup(int itemId, int groupId, SharePermission permission, DateTime? expiresAt = null, bool allowDownload = true, bool notify = true, string? message = null)
+        {
+            var userId = _userManager.GetUserId(User)!;
+
+            try
+            {
+                var (successCount, failedCount, failedEmails) = await _sharingService.ShareWithGroupAsync(
+                    itemId, userId, groupId, permission, expiresAt, allowDownload, notify, message);
+
+                return Json(new
+                {
+                    success = true,
+                    successCount,
+                    failedCount,
+                    failedEmails
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sharing item {ItemId} with group {GroupId} for user {UserId}", itemId, groupId, userId);
+                return Json(new { success = false, message = "An error occurred while sharing with the group." });
+            }
+        }
+
         // AI Feature 1: Create folder and files from AI prompt
         [HttpGet]
         public IActionResult AICreateFolder(int? parentFolderId)
@@ -959,6 +1157,158 @@ namespace CloudStorage.Controllers
             };
 
             return View(viewModel);
+        }
+
+        // Comment Actions
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AddComment(int itemId, string commentText, int? parentCommentId = null)
+        {
+            var userId = _userManager.GetUserId(User)!;
+
+            try
+            {
+                if (string.IsNullOrWhiteSpace(commentText))
+                {
+                    return Json(new { success = false, message = "Comment text cannot be empty." });
+                }
+
+                var comment = await _commentService.AddCommentAsync(itemId, userId, commentText.Trim(), parentCommentId);
+
+                return Json(new 
+                { 
+                    success = true, 
+                    message = "Comment added successfully!",
+                    comment = new
+                    {
+                        id = comment.Id,
+                        text = comment.Text,
+                        userName = $"{comment.User.FirstName} {comment.User.LastName}",
+                        userId = comment.UserId,
+                        createdAt = comment.CreatedAt.ToString("yyyy-MM-dd HH:mm"),
+                        isOwner = comment.UserId == userId
+                    }
+                });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error adding comment to item {ItemId}", itemId);
+                return Json(new { success = false, message = "An error occurred while adding the comment." });
+            }
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UpdateComment(int commentId, string commentText)
+        {
+            var userId = _userManager.GetUserId(User)!;
+
+            try
+            {
+                if (string.IsNullOrWhiteSpace(commentText))
+                {
+                    return Json(new { success = false, message = "Comment text cannot be empty." });
+                }
+
+                var updated = await _commentService.UpdateCommentAsync(commentId, userId, commentText.Trim());
+
+                if (updated)
+                {
+                    return Json(new { success = true, message = "Comment updated successfully!" });
+                }
+                else
+                {
+                    return Json(new { success = false, message = "Comment not found." });
+                }
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating comment {CommentId}", commentId);
+                return Json(new { success = false, message = "An error occurred while updating the comment." });
+            }
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteComment(int commentId)
+        {
+            var userId = _userManager.GetUserId(User)!;
+
+            try
+            {
+                var deleted = await _commentService.DeleteCommentAsync(commentId, userId);
+
+                if (deleted)
+                {
+                    return Json(new { success = true, message = "Comment deleted successfully!" });
+                }
+                else
+                {
+                    return Json(new { success = false, message = "Comment not found." });
+                }
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting comment {CommentId}", commentId);
+                return Json(new { success = false, message = "An error occurred while deleting the comment." });
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetComments(int itemId)
+        {
+            var userId = _userManager.GetUserId(User)!;
+
+            try
+            {
+                var hasAccess = await _commentService.CanUserAccessCommentsAsync(itemId, userId);
+                if (!hasAccess)
+                {
+                    return Json(new { success = false, message = "You don't have access to view comments." });
+                }
+
+                var comments = await _commentService.GetFileCommentsAsync(itemId);
+
+                var commentList = comments.Select(c => new
+                {
+                    id = c.Id,
+                    text = c.Text,
+                    userName = $"{c.User.FirstName} {c.User.LastName}",
+                    userId = c.UserId,
+                    createdAt = c.CreatedAt.ToString("yyyy-MM-dd HH:mm"),
+                    modifiedAt = c.ModifiedAt?.ToString("yyyy-MM-dd HH:mm"),
+                    isOwner = c.UserId == userId,
+                    replies = c.Replies.Select(r => new
+                    {
+                        id = r.Id,
+                        text = r.Text,
+                        userName = $"{r.User.FirstName} {r.User.LastName}",
+                        userId = r.UserId,
+                        createdAt = r.CreatedAt.ToString("yyyy-MM-dd HH:mm"),
+                        modifiedAt = r.ModifiedAt?.ToString("yyyy-MM-dd HH:mm"),
+                        isOwner = r.UserId == userId
+                    }).ToList()
+                }).ToList();
+
+                return Json(new { success = true, comments = commentList });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting comments for item {ItemId}", itemId);
+                return Json(new { success = false, message = "An error occurred while loading comments." });
+            }
         }
 
 

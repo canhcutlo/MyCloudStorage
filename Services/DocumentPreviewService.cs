@@ -73,6 +73,15 @@ namespace CloudStorage.Services
                 ".jpeg" => true,
                 ".gif" => true,
                 ".bmp" => true,
+                ".mp4" => true,
+                ".webm" => true,
+                ".ogg" => true,
+                ".mov" => true,
+                ".avi" => true,
+                ".mkv" => true,
+                ".wmv" => true,
+                ".flv" => true,
+                ".m4v" => true,
                 _ => false
             };
         }

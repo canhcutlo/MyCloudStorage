@@ -16,6 +16,8 @@ namespace CloudStorage.Services
         string GenerateUniqueFileName(string originalFileName, string userId);
         long GetDirectorySize(string directoryPath);
         Task<string> GetFileContentAsync(string filePath);
+        Task<bool> SaveFileContentAsync(string filePath, string content);
+        bool IsEditableTextFile(string fileName);
     }
 
     public class FileStorageService : IFileStorageService
@@ -228,6 +230,44 @@ namespace CloudStorage.Services
                 _logger.LogError(ex, "Error reading file content {FilePath}", filePath);
                 throw;
             }
+        }
+
+        public async Task<bool> SaveFileContentAsync(string filePath, string content)
+        {
+            try
+            {
+                var fullPath = Path.Combine(_uploadsPath, filePath);
+                if (!File.Exists(fullPath))
+                {
+                    throw new FileNotFoundException($"File not found: {filePath}");
+                }
+
+                await File.WriteAllTextAsync(fullPath, content, Encoding.UTF8);
+                _logger.LogInformation("Successfully saved content to file {FilePath}", filePath);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error saving file content {FilePath}", filePath);
+                return false;
+            }
+        }
+
+        public bool IsEditableTextFile(string fileName)
+        {
+            var extension = Path.GetExtension(fileName).ToLowerInvariant();
+            
+            var editableExtensions = new HashSet<string>
+            {
+                ".txt", ".md", ".markdown", ".json", ".xml", ".csv",
+                ".html", ".htm", ".css", ".js", ".ts", ".jsx", ".tsx",
+                ".py", ".java", ".c", ".cpp", ".cs", ".h", ".hpp",
+                ".php", ".rb", ".go", ".rs", ".swift", ".kt",
+                ".sql", ".sh", ".bat", ".ps1", ".yaml", ".yml",
+                ".ini", ".cfg", ".conf", ".log", ".rtf"
+            };
+            
+            return editableExtensions.Contains(extension);
         }
     }
 }

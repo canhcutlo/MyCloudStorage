@@ -14,6 +14,11 @@ namespace CloudStorage.Data
         public DbSet<SharedItem> SharedItems { get; set; }
         public DbSet<PasswordResetToken> PasswordResetTokens { get; set; }
         public DbSet<Favorite> Favorites { get; set; }
+        public DbSet<Group> Groups { get; set; }
+        public DbSet<GroupMember> GroupMembers { get; set; }
+        public DbSet<Comment> Comments { get; set; }
+        public DbSet<ActivityLog> ActivityLogs { get; set; }
+        public DbSet<FileVersion> FileVersions { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -95,6 +100,98 @@ namespace CloudStorage.Data
             builder.Entity<Favorite>()
                 .HasIndex(f => new { f.UserId, f.StorageItemId })
                 .IsUnique();
+
+            // Configure Group relationships
+            builder.Entity<Group>()
+                .HasOne(g => g.Owner)
+                .WithMany()
+                .HasForeignKey(g => g.OwnerId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<Group>()
+                .HasIndex(g => new { g.OwnerId, g.Name })
+                .IsUnique();
+
+            // Configure GroupMember relationships
+            builder.Entity<GroupMember>()
+                .HasOne(gm => gm.Group)
+                .WithMany(g => g.Members)
+                .HasForeignKey(gm => gm.GroupId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<GroupMember>()
+                .HasOne(gm => gm.User)
+                .WithMany()
+                .HasForeignKey(gm => gm.UserId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            builder.Entity<GroupMember>()
+                .HasIndex(gm => new { gm.GroupId, gm.Email })
+                .IsUnique();
+
+            builder.Entity<GroupMember>()
+                .HasIndex(gm => gm.Email);
+
+            // Configure Comment relationships
+            builder.Entity<Comment>()
+                .HasOne(c => c.StorageItem)
+                .WithMany()
+                .HasForeignKey(c => c.StorageItemId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<Comment>()
+                .HasOne(c => c.User)
+                .WithMany()
+                .HasForeignKey(c => c.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<Comment>()
+                .HasOne(c => c.ParentComment)
+                .WithMany(c => c.Replies)
+                .HasForeignKey(c => c.ParentCommentId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Configure ActivityLog relationships
+            builder.Entity<ActivityLog>()
+                .HasOne(a => a.StorageItem)
+                .WithMany()
+                .HasForeignKey(a => a.StorageItemId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<ActivityLog>()
+                .HasOne(a => a.User)
+                .WithMany()
+                .HasForeignKey(a => a.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<ActivityLog>()
+                .HasIndex(a => a.Timestamp);
+
+            builder.Entity<ActivityLog>()
+                .HasIndex(a => new { a.StorageItemId, a.Timestamp });
+
+            builder.Entity<ActivityLog>()
+                .HasIndex(a => new { a.UserId, a.Timestamp });
+
+            // Configure FileVersion relationships
+            builder.Entity<FileVersion>()
+                .HasOne(fv => fv.StorageItem)
+                .WithMany()
+                .HasForeignKey(fv => fv.StorageItemId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<FileVersion>()
+                .HasOne(fv => fv.CreatedBy)
+                .WithMany()
+                .HasForeignKey(fv => fv.CreatedByUserId)
+                .OnDelete(DeleteBehavior.NoAction); // Prevent cascade cycle
+
+            builder.Entity<FileVersion>()
+                .HasIndex(fv => new { fv.StorageItemId, fv.VersionNumber })
+                .IsUnique();
+
+            builder.Entity<FileVersion>()
+                .HasIndex(fv => fv.CreatedAt);
         }
     }
 }

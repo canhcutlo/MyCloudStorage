@@ -113,4 +113,18 @@ namespace CloudStorage.Models.ViewModels
         [DataType(DataType.DateTime)]
         public DateTime? ExpiresAt { get; set; }
     }
+
+    public class ReplaceFileViewModel
+    {
+        public int ItemId { get; set; }
+        public string ItemName { get; set; } = string.Empty;
+        public int? ParentFolderId { get; set; }
+
+        [Required]
+        public IFormFile File { get; set; } = null!;
+
+        [MaxLength(500)]
+        [Display(Name = "Change Description (Optional)")]
+        public string? ChangeDescription { get; set; }
+    }
 }

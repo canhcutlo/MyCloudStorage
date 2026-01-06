@@ -27,12 +27,42 @@
                 <div id="tab-people" class="share-tab-content active">
                     <h6 class="mb-3">Add people</h6>
                     
-                    <div class="share-input-group">
-                        <label for="shareEmail">Email address</label>
-                        <input type="email" 
-                               id="shareEmail" 
-                               class="form-control" 
-                               placeholder="Enter email address">
+                    <!-- Share Type Selection -->
+                    <div class="btn-group mb-3 w-100" role="group">
+                        <input type="radio" class="btn-check" name="shareType" id="shareTypeEmail" checked>
+                        <label class="btn btn-outline-primary" for="shareTypeEmail" onclick="showShareType('email')">
+                            <i class="bi bi-envelope"></i> By Email
+                        </label>
+                        
+                        <input type="radio" class="btn-check" name="shareType" id="shareTypeGroup">
+                        <label class="btn btn-outline-primary" for="shareTypeGroup" onclick="showShareType('group')">
+                            <i class="bi bi-people-fill"></i> By Group
+                        </label>
+                    </div>
+                    
+                    <!-- Email Sharing -->
+                    <div id="emailShareSection">
+                        <div class="share-input-group">
+                            <label for="shareEmail">Email address</label>
+                            <input type="email" 
+                                   id="shareEmail" 
+                                   class="form-control" 
+                                   placeholder="Enter email address">
+                        </div>
+                    </div>
+                    
+                    <!-- Group Sharing -->
+                    <div id="groupShareSection" style="display: none;">
+                        <div class="share-input-group">
+                            <label for="shareGroup">Select Group</label>
+                            <select id="shareGroup" class="form-select">
+                                <option value="">Loading groups...</option>
+                            </select>
+                            <div class="small text-muted mt-1">
+                                Share with all members of the selected group at once. 
+                                <a asp-controller="Groups" asp-action="Index" target="_blank">Manage groups</a>
+                            </div>
+                        </div>
                     </div>
                     
                     <div class="share-input-group">

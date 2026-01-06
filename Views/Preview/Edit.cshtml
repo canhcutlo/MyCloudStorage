@@ -1,0 +1,338 @@
+@{
+    ViewData["Title"] = "Edit File";
+    Layout = "_Layout";
+    var item = ViewBag.Item as CloudStorage.Models.StorageItem;
+    var content = ViewBag.Content as string ?? "";
+    var language = ViewBag.Language as string ?? "plaintext";
+    
+    if (item == null)
+    {
+        throw new InvalidOperationException("Item not found");
+    }
+}
+
+<div class="container-fluid" style="padding-top: 20px; padding-bottom: 20px;">
+    <div class="row mb-3">
+        <div class="col">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2>
+                    <i class="fas fa-edit me-2"></i>Edit: @item.Name
+                </h2>
+                <div class="btn-group">
+                    <button type="button" class="btn btn-success" id="saveBtn" onclick="saveFile()">
+                        <i class="fas fa-save"></i> Save
+                    </button>
+                    @if (language == "markdown")
+                    {
+                        <button type="button" class="btn btn-info" id="previewBtn" onclick="togglePreview()">
+                            <i class="fas fa-eye"></i> Preview
+                        </button>
+                    }
+                    <a asp-controller="Storage" asp-action="Index" asp-route-folderId="@item.ParentFolderId" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> Cancel
+                    </a>
+                </div>
+            </div>
+            <div class="mt-2">
+                <span class="badge bg-primary">@language</span>
+                <span class="badge bg-secondary">@Math.Round(item.Size / 1024.0, 2) KB</span>
+                <span class="badge bg-info text-dark">Last modified: @item.ModifiedAt.ToString("yyyy-MM-dd HH:mm")</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="row" style="min-height: 600px;">
+        <div class="col" id="editorColumn">
+            <div id="editor" style="height: 600px; border: 1px solid #ddd; border-radius: 4px;"></div>
+        </div>
+        @if (language == "markdown")
+        {
+            <div class="col d-none" id="previewColumn">
+                <div class="card h-100">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0"><i class="fas fa-eye me-2"></i>Markdown Preview</h5>
+                    </div>
+                    <div class="card-body overflow-auto" id="markdownPreview">
+                        <!-- Preview content will be rendered here -->
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <div class="row mt-3">
+        <div class="col">
+            <div id="statusMessage" class="alert d-none" role="alert"></div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <!-- Monaco Editor CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.min.js"></script>
+    <!-- Marked.js for Markdown Preview -->
+    @if (language == "markdown")
+    {
+        <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    }
+    
+    <script>
+        let editor;
+        let originalContent = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(content));
+        let hasUnsavedChanges = false;
+
+        require.config({ 
+            paths: { 
+                'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs' 
+            } 
+        });
+
+        require(['vs/editor/editor.main'], function() {
+            editor = monaco.editor.create(document.getElementById('editor'), {
+                value: originalContent,
+                language: '@language',
+                theme: 'vs-dark',
+                automaticLayout: true,
+                fontSize: 14,
+                minimap: {
+                    enabled: true
+                },
+                scrollBeyondLastLine: false,
+                wordWrap: 'on',
+                lineNumbers: 'on',
+                renderWhitespace: 'selection',
+                tabSize: 4,
+                insertSpaces: true
+            });
+
+            // Track changes
+            editor.onDidChangeModelContent(function() {
+                hasUnsavedChanges = (editor.getValue() !== originalContent);
+                updateSaveButton();
+                @if (language == "markdown")
+                {
+                    @:updateMarkdownPreview();
+                }
+            });
+
+            // Keyboard shortcuts
+            editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, function() {
+                saveFile();
+            });
+
+            // Initial markdown preview if in markdown mode
+            @if (language == "markdown")
+            {
+                @:updateMarkdownPreview();
+            }
+        });
+
+        function updateSaveButton() {
+            const saveBtn = document.getElementById('saveBtn');
+            if (hasUnsavedChanges) {
+                saveBtn.classList.remove('btn-success');
+                saveBtn.classList.add('btn-warning');
+                saveBtn.innerHTML = '<i class="fas fa-exclamation-circle"></i> Save*';
+            } else {
+                saveBtn.classList.remove('btn-warning');
+                saveBtn.classList.add('btn-success');
+                saveBtn.innerHTML = '<i class="fas fa-save"></i> Save';
+            }
+        }
+
+        async function saveFile() {
+            const content = editor.getValue();
+            const saveBtn = document.getElementById('saveBtn');
+            
+            // Disable button during save
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
+            try {
+                const response = await fetch('@Url.Action("Edit", "Preview", new { id = item.Id })', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+                    },
+                    body: new URLSearchParams({
+                        'id': '@item.Id',
+                        'content': content
+                    })
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    originalContent = content;
+                    hasUnsavedChanges = false;
+                    updateSaveButton();
+                    showMessage(result.message, 'success');
+                } else {
+                    showMessage(result.message || 'Failed to save file', 'danger');
+                }
+            } catch (error) {
+                console.error('Save error:', error);
+                showMessage('An error occurred while saving the file', 'danger');
+            } finally {
+                saveBtn.disabled = false;
+                updateSaveButton();
+            }
+        }
+
+        function showMessage(message, type) {
+            const messageDiv = document.getElementById('statusMessage');
+            messageDiv.className = `alert alert-${type}`;
+            messageDiv.textContent = message;
+            messageDiv.classList.remove('d-none');
+            
+            setTimeout(() => {
+                messageDiv.classList.add('d-none');
+            }, 5000);
+        }
+
+        @if (language == "markdown")
+        {
+            <text>
+            function togglePreview() {
+                const editorColumn = document.getElementById('editorColumn');
+                const previewColumn = document.getElementById('previewColumn');
+                const previewBtn = document.getElementById('previewBtn');
+                const editorDiv = document.getElementById('editor');
+                
+                if (previewColumn.classList.contains('d-none')) {
+                    // Show preview - split view
+                    editorColumn.classList.remove('col');
+                    editorColumn.classList.add('col-6');
+                    previewColumn.classList.remove('d-none');
+                    previewColumn.classList.add('col-6');
+                    previewBtn.innerHTML = '<i class="fas fa-code"></i> Code Only';
+                    updateMarkdownPreview();
+                } else {
+                    // Hide preview - full editor
+                    editorColumn.classList.remove('col-6');
+                    editorColumn.classList.add('col');
+                    previewColumn.classList.remove('col-6');
+                    previewColumn.classList.add('d-none');
+                    previewBtn.innerHTML = '<i class="fas fa-eye"></i> Preview';
+                }
+                
+                // Trigger editor resize
+                setTimeout(() => {
+                    if (editor) {
+                        editor.layout();
+                    }
+                }, 100);
+            }
+
+            function updateMarkdownPreview() {
+                const previewDiv = document.getElementById('markdownPreview');
+                const content = editor.getValue();
+                
+                if (typeof marked !== 'undefined') {
+                    marked.setOptions({
+                        breaks: true,
+                        gfm: true,
+                        highlight: function(code, lang) {
+                            return code;
+                        }
+                    });
+                    previewDiv.innerHTML = marked.parse(content);
+                }
+            }
+            </text>
+        }
+
+        // Warn before leaving with unsaved changes
+        window.addEventListener('beforeunload', function(e) {
+            if (hasUnsavedChanges) {
+                e.preventDefault();
+                e.returnValue = '';
+                return '';
+            }
+        });
+    </script>
+
+    <!-- Anti-forgery token -->
+    <form id="hiddenForm" style="display: none;">
+        @Html.AntiForgeryToken()
+    </form>
+
+    <style>
+        #markdownPreview {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            padding: 20px;
+        }
+
+        #markdownPreview h1,
+        #markdownPreview h2,
+        #markdownPreview h3,
+        #markdownPreview h4,
+        #markdownPreview h5,
+        #markdownPreview h6 {
+            margin-top: 24px;
+            margin-bottom: 16px;
+            font-weight: 600;
+            line-height: 1.25;
+        }
+
+        #markdownPreview h1 {
+            font-size: 2em;
+            border-bottom: 1px solid #e1e4e8;
+            padding-bottom: 0.3em;
+        }
+
+        #markdownPreview h2 {
+            font-size: 1.5em;
+            border-bottom: 1px solid #e1e4e8;
+            padding-bottom: 0.3em;
+        }
+
+        #markdownPreview code {
+            background-color: #f6f8fa;
+            border-radius: 3px;
+            font-size: 85%;
+            padding: 0.2em 0.4em;
+        }
+
+        #markdownPreview pre {
+            background-color: #f6f8fa;
+            border-radius: 6px;
+            padding: 16px;
+            overflow: auto;
+        }
+
+        #markdownPreview pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+
+        #markdownPreview blockquote {
+            border-left: 4px solid #dfe2e5;
+            color: #6a737d;
+            padding-left: 1em;
+            margin-left: 0;
+        }
+
+        #markdownPreview table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        #markdownPreview table th,
+        #markdownPreview table td {
+            border: 1px solid #dfe2e5;
+            padding: 6px 13px;
+        }
+
+        #markdownPreview table tr:nth-child(even) {
+            background-color: #f6f8fa;
+        }
+
+        #markdownPreview img {
+            max-width: 100%;
+            height: auto;
+        }
+    </style>
+}

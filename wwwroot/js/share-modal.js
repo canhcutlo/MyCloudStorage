@@ -17,12 +17,55 @@ function openShareModal(itemId, itemName) {
     // Load or generate share link
     loadShareLink(itemId);
     
+    // Load user groups
+    loadUserGroups();
+    
     // Show modal
     const modal = new bootstrap.Modal(document.getElementById('shareModal'));
     modal.show();
     
     // Switch to first tab
     showShareTab('people');
+}
+
+// Show/hide share type sections
+function showShareType(type) {
+    if (type === 'email') {
+        document.getElementById('emailShareSection').style.display = 'block';
+        document.getElementById('groupShareSection').style.display = 'none';
+    } else if (type === 'group') {
+        document.getElementById('emailShareSection').style.display = 'none';
+        document.getElementById('groupShareSection').style.display = 'block';
+    }
+}
+
+// Load user's groups
+async function loadUserGroups() {
+    const select = document.getElementById('shareGroup');
+    
+    try {
+        const response = await fetch('/Groups/GetUserGroups');
+        const data = await response.json();
+        
+        if (data.success && data.groups) {
+            if (data.groups.length === 0) {
+                select.innerHTML = '<option value="">No groups available</option>';
+            } else {
+                select.innerHTML = '<option value="">Select a group...</option>';
+                data.groups.forEach(group => {
+                    const option = document.createElement('option');
+                    option.value = group.id;
+                    option.textContent = `${group.name} (${group.memberCount} members)`;
+                    select.appendChild(option);
+                });
+            }
+        } else {
+            select.innerHTML = '<option value="">Failed to load groups</option>';
+        }
+    } catch (error) {
+        console.error('Error loading groups:', error);
+        select.innerHTML = '<option value="">Error loading groups</option>';
+    }
 }
 
 // Show specific tab in share modal
@@ -44,6 +87,14 @@ function showShareTab(tabName) {
 
 // Share with specific person
 async function shareWithPerson() {
+    // Check if sharing by email or group
+    const shareType = document.querySelector('input[name="shareType"]:checked').id;
+    
+    if (shareType === 'shareTypeGroup') {
+        await shareWithGroup();
+        return;
+    }
+    
     const email = document.getElementById('shareEmail').value.trim();
     const permission = document.getElementById('sharePermission').value;
     const allowDownload = document.getElementById('allowDownload').checked;
@@ -314,6 +365,62 @@ async function removeAccess(shareId) {
     } catch (error) {
         console.error('Error removing access:', error);
         showAlert('An error occurred', 'danger');
+    }
+}
+
+// Share with group
+async function shareWithGroup() {
+    const groupId = document.getElementById('shareGroup').value;
+    const permission = document.getElementById('sharePermission').value;
+    const allowDownload = document.getElementById('allowDownload').checked;
+    const notify = document.getElementById('notifyPerson').checked;
+    const message = document.getElementById('shareMessage').value.trim();
+    
+    if (!groupId) {
+        showAlert('Please select a group', 'danger');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('ItemId', currentItemId);
+    formData.append('GroupId', groupId);
+    formData.append('Permission', permission);
+    formData.append('AllowDownload', allowDownload);
+    formData.append('Notify', notify);
+    if (message) {
+        formData.append('Message', message);
+    }
+    
+    // Get anti-forgery token
+    const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+    
+    try {
+        const response = await fetch('/Storage/ShareWithGroup', {
+            method: 'POST',
+            headers: {
+                'RequestVerificationToken': token
+            },
+            body: formData
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            showAlert(`Successfully shared with group: ${result.successCount} members`, 'success');
+            
+            if (result.failedCount > 0) {
+                showAlert(`Failed to share with ${result.failedCount} members`, 'warning');
+            }
+            
+            document.getElementById('shareMessage').value = '';
+            
+            // Reload shares
+            loadExistingShares(currentItemId);
+        } else {
+            showAlert('Failed to share with group. Please try again.', 'danger');
+        }
+    } catch (error) {
+        console.error('Error sharing with group:', error);
+        showAlert('An error occurred while sharing with group', 'danger');
     }
 }
 

@@ -1,0 +1,285 @@
+@model CloudStorage.Models.StorageItem
+@inject CloudStorage.Services.ICommentService CommentService
+@inject Microsoft.AspNetCore.Identity.UserManager<CloudStorage.Models.ApplicationUser> UserManager
+
+@{
+    var userId = UserManager.GetUserId(User);
+    var comments = await CommentService.GetFileCommentsAsync(Model.Id);
+    var commentCount = await CommentService.GetFileCommentCountAsync(Model.Id);
+}
+
+<div class="card mt-3">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">
+            <i class="fas fa-comments me-2"></i>Comments (@commentCount)
+        </h5>
+    </div>
+    <div class="card-body">
+        <!-- Add New Comment -->
+        <div class="mb-4">
+            <form id="addCommentForm">
+                @Html.AntiForgeryToken()
+                <div class="form-group">
+                    <textarea class="form-control" id="commentText" name="commentText" rows="3" placeholder="Write a comment..." required></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary mt-2">
+                    <i class="fas fa-paper-plane me-1"></i>Add Comment
+                </button>
+            </form>
+        </div>
+
+        <!-- Comments List -->
+        <div id="commentsList">
+            @if (comments.Any())
+            {
+                @foreach (var comment in comments)
+                {
+                    <div class="comment-item mb-3 p-3 border rounded" data-comment-id="@comment.Id">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <strong>@comment.User.FirstName @comment.User.LastName</strong>
+                                <small class="text-muted ms-2">@comment.CreatedAt.ToString("MMM dd, yyyy HH:mm")</small>
+                                @if (comment.ModifiedAt.HasValue)
+                                {
+                                    <small class="text-muted">(edited)</small>
+                                }
+                            </div>
+                            @if (comment.UserId == userId)
+                            {
+                                <div class="dropdown">
+                                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                        <i class="fas fa-ellipsis-v"></i>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end">
+                                        <li>
+                                            <a class="dropdown-item" href="javascript:void(0);" onclick="editComment(@comment.Id, '@Html.Raw(comment.Text.Replace("'", "\\'").Replace("\n", "\\n"))')">
+                                                <i class="fas fa-edit me-2"></i>Edit
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item text-danger" href="javascript:void(0);" onclick="deleteComment(@comment.Id)">
+                                                <i class="fas fa-trash me-2"></i>Delete
+                                            </a>
+                                        </li>
+                                    </ul>
+                                </div>
+                            }
+                        </div>
+                        <p class="mt-2 mb-2 comment-text">@comment.Text</p>
+                        <button class="btn btn-sm btn-link text-decoration-none p-0" onclick="showReplyForm(@comment.Id)">
+                            <i class="fas fa-reply me-1"></i>Reply
+                        </button>
+
+                        <!-- Reply Form (hidden by default) -->
+                        <div id="replyForm@(comment.Id)" class="mt-2 d-none">
+                            <form class="reply-form" data-parent-id="@comment.Id">
+                                @Html.AntiForgeryToken()
+                                <textarea class="form-control form-control-sm" rows="2" placeholder="Write a reply..." required></textarea>
+                                <div class="mt-1">
+                                    <button type="submit" class="btn btn-sm btn-primary">Reply</button>
+                                    <button type="button" class="btn btn-sm btn-secondary" onclick="hideReplyForm(@comment.Id)">Cancel</button>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- Replies -->
+                        @if (comment.Replies.Any())
+                        {
+                            <div class="ms-4 mt-3">
+                                @foreach (var reply in comment.Replies)
+                                {
+                                    <div class="reply-item mb-2 p-2 border-start border-3 border-primary" data-comment-id="@reply.Id">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div class="flex-grow-1">
+                                                <strong>@reply.User.FirstName @reply.User.LastName</strong>
+                                                <small class="text-muted ms-2">@reply.CreatedAt.ToString("MMM dd, yyyy HH:mm")</small>
+                                                @if (reply.ModifiedAt.HasValue)
+                                                {
+                                                    <small class="text-muted">(edited)</small>
+                                                }
+                                            </div>
+                                            @if (reply.UserId == userId)
+                                            {
+                                                <div class="dropdown">
+                                                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                                        <i class="fas fa-ellipsis-v"></i>
+                                                    </button>
+                                                    <ul class="dropdown-menu dropdown-menu-end">
+                                                        <li>
+                                                            <a class="dropdown-item" href="javascript:void(0);" onclick="editComment(@reply.Id, '@Html.Raw(reply.Text.Replace("'", "\\'").Replace("\n", "\\n"))')">
+                                                                <i class="fas fa-edit me-2"></i>Edit
+                                                            </a>
+                                                        </li>
+                                                        <li>
+                                                            <a class="dropdown-item text-danger" href="javascript:void(0);" onclick="deleteComment(@reply.Id)">
+                                                                <i class="fas fa-trash me-2"></i>Delete
+                                                            </a>
+                                                        </li>
+                                                    </ul>
+                                                </div>
+                                            }
+                                        </div>
+                                        <p class="mt-1 mb-0 comment-text">@reply.Text</p>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="text-center text-muted py-4">
+                    <i class="fas fa-comments fa-3x mb-3"></i>
+                    <p>No comments yet. Be the first to comment!</p>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const itemId = @Model.Id;
+
+        // Add new comment
+        document.getElementById('addCommentForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const commentText = document.getElementById('commentText').value.trim();
+            if (!commentText) return;
+
+            const formData = new FormData(this);
+            formData.append('itemId', itemId);
+
+            try {
+                const response = await fetch('@Url.Action("AddComment", "Storage")', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    location.reload(); // Reload to show new comment
+                } else {
+                    alert(result.message);
+                }
+            } catch (error) {
+                console.error('Error adding comment:', error);
+                alert('An error occurred while adding the comment.');
+            }
+        });
+
+        // Handle reply forms
+        document.querySelectorAll('.reply-form').forEach(form => {
+            form.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const parentId = this.dataset.parentId;
+                const replyText = this.querySelector('textarea').value.trim();
+                if (!replyText) return;
+
+                const formData = new FormData(this);
+                formData.append('itemId', itemId);
+                formData.append('parentCommentId', parentId);
+                formData.append('commentText', replyText);
+
+                try {
+                    const response = await fetch('@Url.Action("AddComment", "Storage")', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        location.reload();
+                    } else {
+                        alert(result.message);
+                    }
+                } catch (error) {
+                    console.error('Error adding reply:', error);
+                    alert('An error occurred while adding the reply.');
+                }
+            });
+        });
+
+        function showReplyForm(commentId) {
+            document.getElementById('replyForm' + commentId).classList.remove('d-none');
+        }
+
+        function hideReplyForm(commentId) {
+            document.getElementById('replyForm' + commentId).classList.add('d-none');
+        }
+
+        async function editComment(commentId, currentText) {
+            const newText = prompt('Edit comment:', currentText);
+            if (!newText || newText.trim() === currentText) return;
+
+            const formData = new FormData();
+            formData.append('commentId', commentId);
+            formData.append('commentText', newText.trim());
+            formData.append('__RequestVerificationToken', document.querySelector('input[name="__RequestVerificationToken"]').value);
+
+            try {
+                const response = await fetch('@Url.Action("UpdateComment", "Storage")', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    location.reload();
+                } else {
+                    alert(result.message);
+                }
+            } catch (error) {
+                console.error('Error updating comment:', error);
+                alert('An error occurred while updating the comment.');
+            }
+        }
+
+        async function deleteComment(commentId) {
+            if (!confirm('Are you sure you want to delete this comment?')) return;
+
+            const formData = new FormData();
+            formData.append('commentId', commentId);
+            formData.append('__RequestVerificationToken', document.querySelector('input[name="__RequestVerificationToken"]').value);
+
+            try {
+                const response = await fetch('@Url.Action("DeleteComment", "Storage")', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    location.reload();
+                } else {
+                    alert(result.message);
+                }
+            } catch (error) {
+                console.error('Error deleting comment:', error);
+                alert('An error occurred while deleting the comment.');
+            }
+        }
+    </script>
+
+    <style>
+        .comment-item {
+            background-color: #f8f9fa;
+        }
+
+        .reply-item {
+            background-color: #ffffff;
+        }
+
+        .comment-text {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+    </style>
+}

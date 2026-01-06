@@ -1,0 +1,331 @@
+@using CloudStorage.Models
+@using System.IO
+@{
+    ViewData["Title"] = "Video Preview";
+    var item = ViewBag.Item as StorageItem;
+}
+
+<div class="container-fluid h-100">
+    <div class="row h-100">
+        <!-- Sidebar -->
+        <div class="col-md-3 bg-light border-end d-flex flex-column" style="height: calc(100vh - 56px);">
+            <div class="p-3 border-bottom">
+                <h5 class="mb-0">
+                    <i class="fas fa-video"></i> Video Info
+                </h5>
+            </div>
+            
+            <div class="p-3 flex-grow-1 overflow-auto">
+                <div class="mb-3">
+                    <h6 class="text-muted mb-2">File Name</h6>
+                    <p class="mb-0 text-break">@item?.Name</p>
+                </div>
+                
+                <div class="mb-3">
+                    <h6 class="text-muted mb-2">File Type</h6>
+                    <p class="mb-0">
+                        <span class="badge bg-danger">
+                            <i class="fas fa-video me-1"></i>
+                            @System.IO.Path.GetExtension(item?.Name ?? "").ToUpper().TrimStart('.')
+                        </span>
+                    </p>
+                </div>
+                
+                <div class="mb-3">
+                    <h6 class="text-muted mb-2">Size</h6>
+                    <p class="mb-0">@(item?.Size != null ? FormatFileSize((long)item.Size) : "N/A")</p>
+                </div>
+                
+                <div class="mb-3">
+                    <h6 class="text-muted mb-2">Created</h6>
+                    <p class="mb-0">@(item != null ? item.CreatedAt.ToString("MMM dd, yyyy HH:mm") : "N/A")</p>
+                </div>
+                
+                <div class="mb-3">
+                    <h6 class="text-muted mb-2">Modified</h6>
+                    <p class="mb-0">@(item != null ? item.ModifiedAt.ToString("MMM dd, yyyy HH:mm") : "N/A")</p>
+                </div>
+
+                <div class="mb-3" id="videoDuration" style="display: none;">
+                    <h6 class="text-muted mb-2">Duration</h6>
+                    <p class="mb-0" id="durationText">-</p>
+                </div>
+
+                <div class="mb-3" id="videoResolution" style="display: none;">
+                    <h6 class="text-muted mb-2">Resolution</h6>
+                    <p class="mb-0" id="resolutionText">-</p>
+                </div>
+                
+                <hr />
+                
+                <div class="d-grid gap-2">
+                    <a href="@Url.Action("Download", "Storage", new { id = item?.Id })" 
+                       class="btn btn-primary">
+                        <i class="fas fa-download me-2"></i>Download
+                    </a>
+                    
+                    <a href="@Url.Action("Index", "Storage", new { folderId = item?.ParentFolderId })" 
+                       class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Files
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Video Player Area -->
+        <div class="col-md-9 d-flex flex-column" style="height: calc(100vh - 56px);">
+            <div class="p-3 border-bottom bg-white">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">
+                        <i class="fas fa-play-circle text-danger me-2"></i>
+                        @item?.Name
+                    </h4>
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="theaterModeBtn">
+                            <i class="fas fa-expand me-1"></i>Theater Mode
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="fullscreenBtn">
+                            <i class="fas fa-expand-arrows-alt me-1"></i>Fullscreen
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex-grow-1 d-flex align-items-center justify-content-center bg-dark" id="videoContainer">
+                <div class="w-100 h-100 d-flex align-items-center justify-content-center p-4" id="videoWrapper">
+                    <video id="videoPlayer" class="w-100" controls preload="metadata" style="max-height: 100%; max-width: 100%;">
+                        <source src="@Url.Action("GetVideoStream", "Preview", new { id = item?.Id })" 
+                                type="@GetVideoMimeType(item?.Name ?? "")">
+                        Your browser does not support the video tag.
+                    </video>
+                </div>
+            </div>
+
+            <!-- Video Controls Info -->
+            <div class="p-3 bg-light border-top">
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="alert alert-info mb-0">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>Playback Controls:</strong>
+                            <ul class="mb-0 mt-2">
+                                <li><strong>Space:</strong> Play/Pause</li>
+                                <li><strong>Left/Right Arrows:</strong> Skip backward/forward 5 seconds</li>
+                                <li><strong>Up/Down Arrows:</strong> Increase/decrease volume</li>
+                                <li><strong>F:</strong> Toggle fullscreen</li>
+                                <li><strong>M:</strong> Mute/Unmute</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@functions {
+    string FormatFileSize(long bytes)
+    {
+        string[] sizes = { "B", "KB", "MB", "GB", "TB" };
+        double len = bytes;
+        int order = 0;
+        while (len >= 1024 && order < sizes.Length - 1)
+        {
+            order++;
+            len = len / 1024;
+        }
+        return $"{len:0.##} {sizes[order]}";
+    }
+
+    string GetVideoMimeType(string fileName)
+    {
+        var extension = System.IO.Path.GetExtension(fileName).ToLowerInvariant();
+        return extension switch
+        {
+            ".mp4" => "video/mp4",
+            ".m4v" => "video/mp4",
+            ".webm" => "video/webm",
+            ".ogg" => "video/ogg",
+            ".mov" => "video/quicktime",
+            ".avi" => "video/x-msvideo",
+            ".mkv" => "video/x-matroska",
+            ".wmv" => "video/x-ms-wmv",
+            ".flv" => "video/x-flv",
+            _ => "application/octet-stream"
+        };
+    }
+}
+
+<style>
+    #videoContainer {
+        position: relative;
+    }
+
+    #videoContainer.theater-mode {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 9999;
+        background: #000;
+    }
+
+    #videoContainer.theater-mode #videoWrapper {
+        padding: 0;
+    }
+
+    #videoPlayer {
+        outline: none;
+        border-radius: 4px;
+    }
+
+    #videoPlayer::-webkit-media-controls-panel {
+        background-image: linear-gradient(transparent, rgba(0,0,0,0.5));
+    }
+
+    .video-loading {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: white;
+        font-size: 24px;
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const video = document.getElementById('videoPlayer');
+        const videoContainer = document.getElementById('videoContainer');
+        const theaterModeBtn = document.getElementById('theaterModeBtn');
+        const fullscreenBtn = document.getElementById('fullscreenBtn');
+        
+        // Display video metadata when loaded
+        video.addEventListener('loadedmetadata', function() {
+            // Duration
+            const duration = formatDuration(video.duration);
+            document.getElementById('durationText').textContent = duration;
+            document.getElementById('videoDuration').style.display = 'block';
+            
+            // Resolution
+            const resolution = `${video.videoWidth} × ${video.videoHeight}`;
+            document.getElementById('resolutionText').textContent = resolution;
+            document.getElementById('videoResolution').style.display = 'block';
+        });
+
+        // Theater mode toggle
+        theaterModeBtn.addEventListener('click', function() {
+            videoContainer.classList.toggle('theater-mode');
+            if (videoContainer.classList.contains('theater-mode')) {
+                theaterModeBtn.innerHTML = '<i class="fas fa-compress me-1"></i>Exit Theater';
+            } else {
+                theaterModeBtn.innerHTML = '<i class="fas fa-expand me-1"></i>Theater Mode';
+            }
+        });
+
+        // Fullscreen toggle
+        fullscreenBtn.addEventListener('click', function() {
+            if (!document.fullscreenElement) {
+                if (video.requestFullscreen) {
+                    video.requestFullscreen();
+                } else if (video.webkitRequestFullscreen) {
+                    video.webkitRequestFullscreen();
+                } else if (video.msRequestFullscreen) {
+                    video.msRequestFullscreen();
+                }
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            // Only handle if video is visible and not in an input
+            if (document.activeElement.tagName === 'INPUT' || 
+                document.activeElement.tagName === 'TEXTAREA') {
+                return;
+            }
+
+            switch(e.key) {
+                case ' ': // Space - Play/Pause
+                    e.preventDefault();
+                    if (video.paused) {
+                        video.play();
+                    } else {
+                        video.pause();
+                    }
+                    break;
+                    
+                case 'ArrowLeft': // Left - Skip backward 5s
+                    e.preventDefault();
+                    video.currentTime = Math.max(0, video.currentTime - 5);
+                    break;
+                    
+                case 'ArrowRight': // Right - Skip forward 5s
+                    e.preventDefault();
+                    video.currentTime = Math.min(video.duration, video.currentTime + 5);
+                    break;
+                    
+                case 'ArrowUp': // Up - Increase volume
+                    e.preventDefault();
+                    video.volume = Math.min(1, video.volume + 0.1);
+                    break;
+                    
+                case 'ArrowDown': // Down - Decrease volume
+                    e.preventDefault();
+                    video.volume = Math.max(0, video.volume - 0.1);
+                    break;
+                    
+                case 'f':
+                case 'F': // F - Fullscreen
+                    e.preventDefault();
+                    fullscreenBtn.click();
+                    break;
+                    
+                case 'm':
+                case 'M': // M - Mute/Unmute
+                    e.preventDefault();
+                    video.muted = !video.muted;
+                    break;
+            }
+        });
+
+        // Exit theater mode on Escape
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && videoContainer.classList.contains('theater-mode')) {
+                videoContainer.classList.remove('theater-mode');
+                theaterModeBtn.innerHTML = '<i class="fas fa-expand me-1"></i>Theater Mode';
+            }
+        });
+
+        // Video error handling
+        video.addEventListener('error', function(e) {
+            console.error('Video error:', e);
+            alert('Error loading video. The file may be corrupted or in an unsupported format.');
+        });
+
+        // Show loading state
+        video.addEventListener('waiting', function() {
+            console.log('Video buffering...');
+        });
+
+        video.addEventListener('canplay', function() {
+            console.log('Video ready to play');
+        });
+    });
+
+    function formatDuration(seconds) {
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const secs = Math.floor(seconds % 60);
+        
+        if (hours > 0) {
+            return `${hours}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        } else {
+            return `${minutes}:${String(secs).padStart(2, '0')}`;
+        }
+    }
+</script>

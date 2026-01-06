@@ -1,0 +1,253 @@
+@model CloudStorage.Controllers.ManageMembersViewModel
+@{
+    ViewData["Title"] = $"Manage Members - {Model.Group.Name}";
+}
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-people-fill"></i> @Model.Group.Name</h2>
+        <a asp-action="Index" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Back to Groups
+        </a>
+    </div>
+
+    @if (!string.IsNullOrEmpty(Model.Group.Description))
+    {
+        <p class="text-muted">@Model.Group.Description</p>
+    }
+
+    <div class="row">
+        <!-- Add Member Section -->
+        <div class="col-md-5 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-person-plus"></i> Add Member</h5>
+                </div>
+                <div class="card-body">
+                    <form id="addMemberForm">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" id="groupId" value="@Model.Group.Id" />
+                        
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email Address <span class="text-danger">*</span></label>
+                            <input type="email" id="email" class="form-control" required 
+                                   placeholder="Enter email address" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="displayName" class="form-label">Display Name</label>
+                            <input type="text" id="displayName" class="form-control" 
+                                   placeholder="Optional: John Doe" />
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="bi bi-plus-circle"></i> Add Member
+                        </button>
+                    </form>
+
+                    <hr />
+
+                    @if (Model.SharingHistoryContacts.Any())
+                    {
+                        <div class="mb-3">
+                            <h6>Quick Add from Sharing History:</h6>
+                            <div class="list-group" style="max-height: 200px; overflow-y: auto;">
+                                @foreach (var contact in Model.SharingHistoryContacts)
+                                {
+                                    <button type="button" class="list-group-item list-group-item-action quick-add-btn" 
+                                            data-email="@contact">
+                                        <i class="bi bi-person-circle"></i> @contact
+                                    </button>
+                                }
+                            </div>
+                        </div>
+
+                        <button type="button" id="importAllBtn" class="btn btn-outline-primary w-100">
+                            <i class="bi bi-download"></i> Import All from History
+                        </button>
+                    }
+                    else
+                    {
+                        <div class="alert alert-info mb-0">
+                            <i class="bi bi-info-circle"></i> No sharing history found. Start by adding members manually.
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Members List Section -->
+        <div class="col-md-7">
+            <div class="card shadow-sm">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-people"></i> Group Members 
+                        <span class="badge bg-light text-dark" id="memberCount">@Model.Group.Members.Count</span>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div id="membersList">
+                        @if (!Model.Group.Members.Any())
+                        {
+                            <div class="text-center py-4 text-muted" id="emptyMessage">
+                                <i class="bi bi-person-x" style="font-size: 3rem;"></i>
+                                <p class="mt-2">No members yet. Add your first member!</p>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="list-group">
+                                @foreach (var member in Model.Group.Members.OrderBy(m => m.Email))
+                                {
+                                    <div class="list-group-item d-flex justify-content-between align-items-center" data-member-id="@member.Id">
+                                        <div>
+                                            <div class="fw-bold">
+                                                <i class="bi bi-person-circle text-primary"></i>
+                                                @if (!string.IsNullOrEmpty(member.DisplayName))
+                                                {
+                                                    @member.DisplayName
+                                                }
+                                                else
+                                                {
+                                                    @member.Email
+                                                }
+                                            </div>
+                                            <div class="small text-muted">@member.Email</div>
+                                            @if (member.IsFromSharingHistory)
+                                            {
+                                                <span class="badge bg-info text-dark">
+                                                    <i class="bi bi-clock-history"></i> From History
+                                                </span>
+                                            }
+                                            @if (member.User != null)
+                                            {
+                                                <span class="badge bg-success">
+                                                    <i class="bi bi-check-circle"></i> Registered User
+                                                </span>
+                                            }
+                                        </div>
+                                        <button type="button" class="btn btn-sm btn-outline-danger remove-member-btn" 
+                                                data-member-id="@member.Id" data-email="@member.Email">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast for notifications -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+    <div id="notificationToast" class="toast" role="alert">
+        <div class="toast-header">
+            <strong class="me-auto" id="toastTitle">Notification</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+        </div>
+        <div class="toast-body" id="toastMessage"></div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const groupId = @Model.Group.Id;
+        const antiForgeryToken = document.querySelector('input[name="__RequestVerificationToken"]').value;
+
+        // Add member form submission
+        document.getElementById('addMemberForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const displayName = document.getElementById('displayName').value;
+
+            const formData = new FormData();
+            formData.append('GroupId', groupId);
+            formData.append('Email', email);
+            formData.append('DisplayName', displayName);
+            formData.append('__RequestVerificationToken', antiForgeryToken);
+
+            const response = await fetch('/Groups/AddMember', {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+            showToast(result.success ? 'Success' : 'Error', result.message);
+
+            if (result.success) {
+                document.getElementById('email').value = '';
+                document.getElementById('displayName').value = '';
+                location.reload(); // Reload to show updated member list
+            }
+        });
+
+        // Quick add from sharing history
+        document.querySelectorAll('.quick-add-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const email = this.getAttribute('data-email');
+                document.getElementById('email').value = email;
+            });
+        });
+
+        // Remove member
+        document.querySelectorAll('.remove-member-btn').forEach(btn => {
+            btn.addEventListener('click', async function() {
+                if (!confirm('Are you sure you want to remove this member?')) return;
+
+                const memberId = this.getAttribute('data-member-id');
+                
+                const formData = new FormData();
+                formData.append('memberId', memberId);
+                formData.append('groupId', groupId);
+                formData.append('__RequestVerificationToken', antiForgeryToken);
+
+                const response = await fetch('/Groups/RemoveMember', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+                showToast(result.success ? 'Success' : 'Error', result.message);
+
+                if (result.success) {
+                    location.reload();
+                }
+            });
+        });
+
+        // Import all contacts from history
+        const importBtn = document.getElementById('importAllBtn');
+        if (importBtn) {
+            importBtn.addEventListener('click', async function() {
+                if (!confirm('This will add all contacts from your sharing history to this group. Continue?')) return;
+
+                const formData = new FormData();
+                formData.append('groupId', groupId);
+                formData.append('__RequestVerificationToken', antiForgeryToken);
+
+                const response = await fetch('/Groups/ImportContacts', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+                showToast(result.success ? 'Success' : 'Error', result.message);
+
+                if (result.success) {
+                    location.reload();
+                }
+            });
+        }
+
+        function showToast(title, message) {
+            document.getElementById('toastTitle').textContent = title;
+            document.getElementById('toastMessage').textContent = message;
+            const toast = new bootstrap.Toast(document.getElementById('notificationToast'));
+            toast.show();
+        }
+    </script>
+}

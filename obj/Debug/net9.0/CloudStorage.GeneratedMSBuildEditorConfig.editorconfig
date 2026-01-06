@@ -56,6 +56,30 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcQWNjb3VudFxSZXNldFBhc3N3b3JkRXJyb3IuY3NodG1s
 build_metadata.AdditionalFiles.CssScope = 
 
+[C:/Project/MyCloudStorage/Views/Activity/Index.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcQWN0aXZpdHlcSW5kZXguY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Project/MyCloudStorage/Views/Activity/Recent.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcQWN0aXZpdHlcUmVjZW50LmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Project/MyCloudStorage/Views/Groups/Create.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcR3JvdXBzXENyZWF0ZS5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Project/MyCloudStorage/Views/Groups/Edit.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcR3JvdXBzXEVkaXQuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Project/MyCloudStorage/Views/Groups/Index.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcR3JvdXBzXEluZGV4LmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Project/MyCloudStorage/Views/Groups/ManageMembers.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcR3JvdXBzXE1hbmFnZU1lbWJlcnMuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
 [C:/Project/MyCloudStorage/Views/Home/Index.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcSG9tZVxJbmRleC5jc2h0bWw=
 build_metadata.AdditionalFiles.CssScope = 
@@ -68,8 +92,20 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcUHJldmlld1xEb2N1bWVudC5jc2h0bWw=
 build_metadata.AdditionalFiles.CssScope = 
 
+[C:/Project/MyCloudStorage/Views/Preview/Edit.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcUHJldmlld1xFZGl0LmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Project/MyCloudStorage/Views/Preview/Video.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcUHJldmlld1xWaWRlby5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
 [C:/Project/MyCloudStorage/Views/Shared/Error.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcU2hhcmVkXEVycm9yLmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Project/MyCloudStorage/Views/Shared/_CommentSection.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcU2hhcmVkXF9Db21tZW50U2VjdGlvbi5jc2h0bWw=
 build_metadata.AdditionalFiles.CssScope = 
 
 [C:/Project/MyCloudStorage/Views/Shared/_ShareModal.cshtml]
@@ -116,6 +152,10 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcU3RvcmFnZVxSZW5hbWUuY3NodG1s
 build_metadata.AdditionalFiles.CssScope = 
 
+[C:/Project/MyCloudStorage/Views/Storage/Replace.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcU3RvcmFnZVxSZXBsYWNlLmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
 [C:/Project/MyCloudStorage/Views/Storage/Search.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcU3RvcmFnZVxTZWFyY2guY3NodG1s
 build_metadata.AdditionalFiles.CssScope = 
@@ -134,6 +174,10 @@ build_metadata.AdditionalFiles.CssScope =
 
 [C:/Project/MyCloudStorage/Views/Storage/Upload.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcU3RvcmFnZVxVcGxvYWQuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Project/MyCloudStorage/Views/Version/History.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcVmVyc2lvblxIaXN0b3J5LmNzaHRtbA==
 build_metadata.AdditionalFiles.CssScope = 
 
 [C:/Project/MyCloudStorage/Views/_ViewImports.cshtml]

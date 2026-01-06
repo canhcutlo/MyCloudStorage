@@ -1,0 +1,62 @@
+﻿Như chúng ta vừa nghe, mô hình Gaussian Naive Bayes hoạt động dựa trên xác suất thống kê. Nhưng câu hỏi đặt ra là: Làm thế nào chúng ta biết chắc chắn những tính toán xác suất đó là đúng? Và quan trọng hơn, làm sao biến những con số khô khan đó thành một công cụ bảo vệ người dùng thực sự?
+
+
+
+Slide 1: "X-quang" Cấu Trúc Mô Hình (1 phút)
+
+Hành động: Chiếu slide sơ đồ Pipeline hoặc cấu trúc JSON tổng quan.
+
+Lời thoại:
+"Đầu tiên, hãy nhìn vào bên trong 'hộp đen' của mô hình này. Nó không phải là một khối mã nguồn hỗn độn, mà là một dây chuyền sản xuất dữ liệu - hay còn gọi là Pipeline - được thiết kế rất bài bản.
+
+*(Chỉ vào Step 0: ColumnTransformer)*
+Tại đây, mô hình hoạt động như một nhà phân loại thông minh. Nó tự động tách dữ liệu thành hai luồng riêng biệt: dữ liệu chữ và dữ liệu số. Việc này cực kỳ quan trọng, giống như việc bạn không thể trộn chung quần áo màu và quần áo trắng khi giặt vậy. Nếu không tách ra xử lý riêng, mô hình sẽ bị nhiễu loạn."
+
+
+Slide 2: Minh chứng Cơ Chế Xử Lý Dữ Liệu (1.5 phút)
+
+Hành động: Chiếu slide có trích dẫn JSON của `OneHotEncoder` và `StandardScaler`.
+
+Lời thoại:
+"Vậy cụ thể mô hình xử lý từng luồng như thế nào? Đây là bằng chứng trích xuất từ chính cấu hình của mô hình:
+
+1. Với dữ liệu chữ (Quốc gia, Loại giao dịch):
+*(Chỉ vào đoạn code OneHotEncoder)*
+Mô hình sử dụng kỹ thuật One-Hot Encoding. Hãy tưởng tượng, máy tính không hiểu 'Việt Nam' hay 'Mỹ', nó chỉ hiểu số 0 và 1. Kỹ thuật này biến mỗi quốc gia thành một mã số định danh duy nhất. Đặc biệt, tham số `handle_unknown: ignore` ở đây cho thấy sự linh hoạt: nếu gặp một quốc gia lạ chưa từng thấy, hệ thống sẽ không bị lỗi mà vẫn tiếp tục xử lý.
+2. Với số tiền giao dịch:
+*(Chỉ vào đoạn code StandardScaler)*
+Đây là điểm thú vị nhất. Số tiền giao dịch có thể dao động từ 1 USD đến 1 triệu USD. Sự chênh lệch quá lớn này có thể làm lu mờ các yếu tố khác. Vì vậy, mô hình sử dụng StandardScaler để ép tất cả về một thang đo chuẩn. Điều này tương tự như khái niệm Normalization mà chúng ta đã học, giúp thuật toán hoạt động ổn định dù số tiền lớn đến đâu."
+
+Slide 3: Minh chứng Thuật Toán & Độ Chính Xác (1 phút)
+
+Hành động: Chiếu slide về `GaussianNB` và biểu đồ Accuracy/Confusion Matrix (nếu có).
+
+Lời thoại:
+"Sau khi dữ liệu đã sạch và chuẩn, nó được đưa vào 'bộ não' trung tâm: thuật toán Gaussian Naive Bayes.
+
+*(Chỉ vào tham số var_smoothing)*
+Con số nhỏ bé `1e-09` này có vai trò cực lớn. Nó giúp mô hình tránh việc đưa ra xác suất tuyệt đối bằng 0, đảm bảo hệ thống luôn có độ linh hoạt nhất định khi tính toán.
+
+Kết quả là gì? Mô hình của chúng tôi đạt độ chính xác khoảng 79.5%. Trong bài toán phát hiện gian lận, con số này là một khởi đầu rất tốt, đặc biệt là với một thuật toán có tốc độ xử lý siêu nhanh như Naive Bayes."
+
+
+Slide 4: Demo Ứng dụng & Cảnh báo (2 phút)
+
+Hành động: Chuyển sang màn hình Demo trực tiếp (hoặc chiếu video demo).
+
+Lời thoại:
+"Lý thuyết đủ rồi, bây giờ hãy xem nó bảo vệ tiền của chúng ta như thế nào.
+
+*(Thực hiện thao tác nhập liệu trên app)*
+Tôi sẽ thử nhập một giao dịch bình thường: Chuyển 50 USD tiền lương tại Mỹ.
+*(Bấm nút dự đoán -> Hiện màu xanh)*
+Hệ thống báo XANH. Xác suất gian lận rất thấp.
+
+Bây giờ, hãy thử một kịch bản đáng ngờ: Chuyển 1 triệu USD từ một quốc gia lạ với nội dung thanh toán hóa đơn.
+*(Bấm nút dự đoán -> Hiện màu đỏ)*
+Ngay lập tức! Hệ thống báo ĐỎ.
+
+*(Chỉ vào dòng code predict_proba trên slide)*
+Điều gì vừa xảy ra? Dòng lệnh `predict_proba` này đã chạy ngầm, tính toán xác suất dựa trên phân phối Gaussian, và khi con số vượt ngưỡng an toàn, nó kích hoạt cảnh báo này. Đây chính là sức mạnh của AI trong việc ra quyết định thời gian thực."
+
+---

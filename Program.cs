@@ -50,10 +50,14 @@ builder.Services.ConfigureApplicationCookie(options =>
 builder.Services.AddScoped<IStorageService, StorageService>();
 builder.Services.AddScoped<IFileStorageService, FileStorageService>();
 builder.Services.AddScoped<ISharingService, SharingService>();
+builder.Services.AddScoped<ICommentService, CommentService>();
+builder.Services.AddScoped<IActivityService, ActivityService>();
 builder.Services.AddScoped<ISemanticSearchService, SemanticSearchService>();
 builder.Services.AddScoped<GeminiAIService>();
 builder.Services.AddScoped<IEmailService, GmailService>();
 builder.Services.AddScoped<IDocumentPreviewService, DocumentPreviewService>();
+builder.Services.AddScoped<GroupService>();
+builder.Services.AddScoped<IFileVersionService, FileVersionService>();
 
 // Register background services
 builder.Services.AddHostedService<TrashCleanupService>();

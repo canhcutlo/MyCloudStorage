@@ -215,51 +215,93 @@
                                 <td>
                                     @{
                                         var canEdit = Model.ItemEditPermissions.GetValueOrDefault(item.Id, false);
+                                        var isFavorite = Model.ItemFavoriteStatuses.GetValueOrDefault(item.Id, false);
                                     }
-                                    <div class="btn-group" role="group">
-                                        @if (item.Type == CloudStorage.Models.StorageItemType.File)
-                                        {
-                                            <a asp-controller="Preview" asp-action="Document" asp-route-id="@item.Id" class="btn btn-sm btn-outline-info" title="Preview">
-                                                <i class="fas fa-eye"></i>
-                                            </a>
-                                            <a asp-action="Download" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary" title="Download">
-                                                <i class="fas fa-download"></i>
-                                            </a>
-                                        }
-                                        
-                                        @{
-                                            var isFavorite = Model.ItemFavoriteStatuses.GetValueOrDefault(item.Id, false);
-                                        }
-                                        
-                                        <form asp-action="ToggleFavorite" method="post" style="display: inline;">
-                                            <input type="hidden" name="id" value="@item.Id" />
-                                            <input type="hidden" name="currentFolderId" value="@currentFolderId" />
-                                            <button type="submit" class="btn btn-sm @(isFavorite ? "btn-warning" : "btn-outline-warning")" title="@(isFavorite ? "Remove from favorites" : "Add to favorites")">
-                                                <i class="@(isFavorite ? "fas" : "far") fa-star"></i>
-                                            </button>
-                                        </form>
-                                        
-                                        <button type="button" 
-                                                class="btn btn-sm btn-outline-success" 
-                                                onclick="openShareModal(@item.Id, '@Html.Raw(item.Name.Replace("'", "\\'"))')"
-                                                title="Share">
-                                            <i class="fas fa-share-alt"></i>
+                                    
+                                    <div class="dropdown">
+                                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="dropdownMenu@(item.Id)" data-bs-toggle="dropdown" aria-expanded="false">
+                                            <i class="fas fa-ellipsis-v"></i>
                                         </button>
-                                        
-                                        @if (canEdit)
-                                        {
-                                            <a asp-action="Rename" asp-route-id="@item.Id" class="btn btn-sm btn-outline-secondary" title="Rename">
-                                                <i class="fas fa-edit"></i>
-                                            </a>
+                                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownMenu@(item.Id)">
+                                            @if (item.Type == CloudStorage.Models.StorageItemType.File)
+                                            {
+                                                <li>
+                                                    <a class="dropdown-item" asp-controller="Preview" asp-action="Document" asp-route-id="@item.Id">
+                                                        <i class="fas fa-eye text-info me-2"></i>Preview
+                                                    </a>
+                                                </li>
+                                                <li>
+                                                    <a class="dropdown-item" asp-action="Download" asp-route-id="@item.Id">
+                                                        <i class="fas fa-download text-primary me-2"></i>Download
+                                                    </a>
+                                                </li>
+                                                
+                                                @inject CloudStorage.Services.IFileStorageService FileStorageService
+                                                @if (canEdit)
+                                                {
+                                                    <li>
+                                                        <a class="dropdown-item" asp-controller="Version" asp-action="History" asp-route-id="@item.Id">
+                                                            <i class="fas fa-clock-rotate-left text-info me-2"></i>Version History
+                                                        </a>
+                                                    </li>
+                                                    <li>
+                                                        <a class="dropdown-item" asp-action="Replace" asp-route-id="@item.Id">
+                                                            <i class="fas fa-arrow-rotate-left text-warning me-2"></i>Replace File
+                                                        </a>
+                                                    </li>
+                                                }
+                                                @if (canEdit && FileStorageService.IsEditableTextFile(item.Name))
+                                                {
+                                                    <li>
+                                                        <a class="dropdown-item" asp-controller="Preview" asp-action="Edit" asp-route-id="@item.Id">
+                                                            <i class="fas fa-edit text-dark me-2"></i>Edit
+                                                        </a>
+                                                    </li>
+                                                }
+                                                <li><hr class="dropdown-divider"></li>
+                                            }
                                             
-                                            <form asp-action="Delete" method="post" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this item?');">
-                                                <input type="hidden" name="id" value="@item.Id" />
-                                                <input type="hidden" name="currentFolderId" value="@currentFolderId" />
-                                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete">
-                                                    <i class="fas fa-trash"></i>
-                                                </button>
-                                            </form>
-                                        }
+                                            <li>
+                                                <form asp-action="ToggleFavorite" method="post" class="d-inline">
+                                                    <input type="hidden" name="id" value="@item.Id" />
+                                                    <input type="hidden" name="currentFolderId" value="@currentFolderId" />
+                                                    <button type="submit" class="dropdown-item">
+                                                        <i class="@(isFavorite ? "fas" : "far") fa-star text-warning me-2"></i>@(isFavorite ? "Remove from Favorites" : "Add to Favorites")
+                                                    </button>
+                                                </form>
+                                            </li>
+                                            
+                                            <li>
+                                                <a class="dropdown-item" href="javascript:void(0);" onclick="openShareModal(@item.Id, '@Html.Raw(item.Name.Replace("'", "\\'"))')">
+                                                    <i class="fas fa-share-alt text-success me-2"></i>Share
+                                                </a>
+                                            </li>
+                                            
+                                            <li>
+                                                <a class="dropdown-item" href="javascript:void(0);" onclick="openCommentsModal(@item.Id, '@Html.Raw(item.Name.Replace("'", "\\'"))')">
+                                                    <i class="fas fa-comments text-info me-2"></i>Comments
+                                                </a>
+                                            </li>
+                                            
+                                            @if (canEdit)
+                                            {
+                                                <li><hr class="dropdown-divider"></li>
+                                                <li>
+                                                    <a class="dropdown-item" asp-action="Rename" asp-route-id="@item.Id">
+                                                        <i class="fas fa-pen text-secondary me-2"></i>Rename
+                                                    </a>
+                                                </li>
+                                                <li>
+                                                    <form asp-action="Delete" method="post" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this item?');">
+                                                        <input type="hidden" name="id" value="@item.Id" />
+                                                        <input type="hidden" name="currentFolderId" value="@currentFolderId" />
+                                                        <button type="submit" class="dropdown-item text-danger">
+                                                            <i class="fas fa-trash me-2"></i>Delete
+                                                        </button>
+                                                    </form>
+                                                </li>
+                                            }
+                                        </ul>
                                     </div>
                                 </td>
                             </tr>
@@ -331,5 +373,177 @@
             const sortSelect = document.getElementById('sortSelect');
             sortSelect.value = sortBy + '-' + sortOrder;
         });
+
+        // Open comments modal
+        function openCommentsModal(itemId, itemName) {
+            const modal = new bootstrap.Modal(document.getElementById('commentsModal'));
+            document.getElementById('commentsModalLabel').textContent = 'Comments - ' + itemName;
+            document.getElementById('commentsModalContent').innerHTML = '<div class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+            modal.show();
+
+            // Load comments
+            fetch(`@Url.Action("GetComments", "Storage")?itemId=${itemId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        renderComments(data.comments, itemId);
+                    } else {
+                        document.getElementById('commentsModalContent').innerHTML = `<div class="alert alert-danger">${data.message}</div>`;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading comments:', error);
+                    document.getElementById('commentsModalContent').innerHTML = '<div class="alert alert-danger">Error loading comments</div>';
+                });
+        }
+
+        function renderComments(comments, itemId) {
+            let html = `
+                <div class="mb-3">
+                    <form id="addCommentForm" onsubmit="addComment(event, ${itemId})">
+                        <textarea class="form-control" id="newCommentText" rows="3" placeholder="Write a comment..." required></textarea>
+                        <button type="submit" class="btn btn-primary mt-2"><i class="fas fa-paper-plane me-1"></i>Add Comment</button>
+                    </form>
+                </div>
+                <hr>
+            `;
+
+            if (comments.length === 0) {
+                html += '<div class="text-center text-muted py-4"><i class="fas fa-comments fa-3x mb-3"></i><p>No comments yet. Be the first to comment!</p></div>';
+            } else {
+                comments.forEach(comment => {
+                    html += `
+                        <div class="comment-item mb-3 p-3 border rounded" style="background-color: #f8f9fa;">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div><strong>${comment.userName}</strong> <small class="text-muted">${comment.createdAt}</small>${comment.modifiedAt ? ' <small class="text-muted">(edited)</small>' : ''}</div>
+                                ${comment.isOwner ? `
+                                    <div class="dropdown">
+                                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown"><i class="fas fa-ellipsis-v"></i></button>
+                                        <ul class="dropdown-menu dropdown-menu-end">
+                                            <li><a class="dropdown-item" href="javascript:void(0);" onclick="editCommentInline(${comment.id}, '${comment.text.replace(/'/g, "\\'")}')"><i class="fas fa-edit me-2"></i>Edit</a></li>
+                                            <li><a class="dropdown-item text-danger" href="javascript:void(0);" onclick="deleteCommentInline(${comment.id})"><i class="fas fa-trash me-2"></i>Delete</a></li>
+                                        </ul>
+                                    </div>
+                                ` : ''}
+                            </div>
+                            <p class="mt-2 mb-2">${comment.text}</p>
+                    `;
+
+                    if (comment.replies && comment.replies.length > 0) {
+                        html += '<div class="ms-4 mt-2">';
+                        comment.replies.forEach(reply => {
+                            html += `
+                                <div class="reply-item mb-2 p-2 border-start border-3 border-primary">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div><strong>${reply.userName}</strong> <small class="text-muted">${reply.createdAt}</small></div>
+                                        ${reply.isOwner ? `
+                                            <div class="dropdown">
+                                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown"><i class="fas fa-ellipsis-v"></i></button>
+                                                <ul class="dropdown-menu dropdown-menu-end">
+                                                    <li><a class="dropdown-item" href="javascript:void(0);" onclick="editCommentInline(${reply.id}, '${reply.text.replace(/'/g, "\\'")}')"><i class="fas fa-edit me-2"></i>Edit</a></li>
+                                                    <li><a class="dropdown-item text-danger" href="javascript:void(0);" onclick="deleteCommentInline(${reply.id})"><i class="fas fa-trash me-2"></i>Delete</a></li>
+                                                </ul>
+                                            </div>
+                                        ` : ''}
+                                    </div>
+                                    <p class="mt-1 mb-0">${reply.text}</p>
+                                </div>
+                            `;
+                        });
+                        html += '</div>';
+                    }
+
+                    html += '</div>';
+                });
+            }
+
+            document.getElementById('commentsModalContent').innerHTML = html;
+        }
+
+        async function addComment(event, itemId) {
+            event.preventDefault();
+            const commentText = document.getElementById('newCommentText').value;
+            
+            const formData = new FormData();
+            formData.append('itemId', itemId);
+            formData.append('commentText', commentText);
+            formData.append('__RequestVerificationToken', document.querySelector('input[name="__RequestVerificationToken"]').value);
+
+            try {
+                const response = await fetch('@Url.Action("AddComment", "Storage")', { method: 'POST', body: formData });
+                const result = await response.json();
+                
+                if (result.success) {
+                    openCommentsModal(itemId, '');
+                    document.getElementById('commentsModalLabel').textContent = document.getElementById('commentsModalLabel').textContent;
+                } else {
+                    alert(result.message);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred');
+            }
+        }
+
+        async function editCommentInline(commentId, currentText) {
+            const newText = prompt('Edit comment:', currentText);
+            if (!newText || newText.trim() === currentText) return;
+
+            const formData = new FormData();
+            formData.append('commentId', commentId);
+            formData.append('commentText', newText.trim());
+            formData.append('__RequestVerificationToken', document.querySelector('input[name="__RequestVerificationToken"]').value);
+
+            try {
+                const response = await fetch('@Url.Action("UpdateComment", "Storage")', { method: 'POST', body: formData });
+                const result = await response.json();
+                
+                if (result.success) {
+                    location.reload();
+                } else {
+                    alert(result.message);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred');
+            }
+        }
+
+        async function deleteCommentInline(commentId) {
+            if (!confirm('Are you sure you want to delete this comment?')) return;
+
+            const formData = new FormData();
+            formData.append('commentId', commentId);
+            formData.append('__RequestVerificationToken', document.querySelector('input[name="__RequestVerificationToken"]').value);
+
+            try {
+                const response = await fetch('@Url.Action("DeleteComment", "Storage")', { method: 'POST', body: formData });
+                const result = await response.json();
+                
+                if (result.success) {
+                    location.reload();
+                } else {
+                    alert(result.message);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred');
+            }
+        }
     </script>
 }
+
+<!-- Comments Modal -->
+<div class="modal fade" id="commentsModal" tabindex="-1" aria-labelledby="commentsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="commentsModalLabel"><i class="fas fa-comments me-2"></i>Comments</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="commentsModalContent">
+                <!-- Content loaded dynamically -->
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,185 @@
+@model List<CloudStorage.Models.ActivityLog>
+@{
+    ViewData["Title"] = "Recent Activity";
+}
+
+<div class="container-fluid px-4 py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-clock me-2"></i>Recent Activity</h2>
+        <a asp-action="Index" class="btn btn-outline-primary">
+            <i class="fas fa-list me-2"></i>View All Activity
+        </a>
+    </div>
+
+    @if (Model.Any())
+    {
+        <div class="timeline">
+            @foreach (var activity in Model)
+            {
+                <div class="timeline-item mb-4">
+                    <div class="timeline-marker">
+                        @switch (activity.ActivityType)
+                        {
+                            case CloudStorage.Models.ActivityType.FileUploaded:
+                                <i class="fas fa-upload text-success"></i>
+                                break;
+                            case CloudStorage.Models.ActivityType.FileDownloaded:
+                                <i class="fas fa-download text-primary"></i>
+                                break;
+                            case CloudStorage.Models.ActivityType.FileViewed:
+                                <i class="fas fa-eye text-info"></i>
+                                break;
+                            case CloudStorage.Models.ActivityType.FileEdited:
+                                <i class="fas fa-edit text-warning"></i>
+                                break;
+                            case CloudStorage.Models.ActivityType.FileDeleted:
+                                <i class="fas fa-trash text-danger"></i>
+                                break;
+                            case CloudStorage.Models.ActivityType.FileShared:
+                                <i class="fas fa-share-alt text-primary"></i>
+                                break;
+                            case CloudStorage.Models.ActivityType.CommentAdded:
+                                <i class="fas fa-comment text-success"></i>
+                                break;
+                            default:
+                                <i class="fas fa-circle text-secondary"></i>
+                                break;
+                        }
+                    </div>
+                    <div class="timeline-content">
+                        <div class="card">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div class="flex-grow-1">
+                                        <h5 class="card-title mb-2">
+                                            @activity.ActivityType.ToString().Replace("File", "").Replace("Folder", "")
+                                        </h5>
+                                        <p class="card-text mb-2">
+                                            <strong>@activity.User?.FirstName @activity.User?.LastName</strong>
+                                            @if (activity.StorageItem != null)
+                                            {
+                                                <span class="text-muted">
+                                                    @if (activity.ActivityType == CloudStorage.Models.ActivityType.FileUploaded)
+                                                    {
+                                                        <text>uploaded</text>
+                                                    }
+                                                    else if (activity.ActivityType == CloudStorage.Models.ActivityType.FileDownloaded)
+                                                    {
+                                                        <text>downloaded</text>
+                                                    }
+                                                    else if (activity.ActivityType == CloudStorage.Models.ActivityType.FileViewed)
+                                                    {
+                                                        <text>viewed</text>
+                                                    }
+                                                    else if (activity.ActivityType == CloudStorage.Models.ActivityType.FileEdited)
+                                                    {
+                                                        <text>edited</text>
+                                                    }
+                                                    else if (activity.ActivityType == CloudStorage.Models.ActivityType.FileDeleted)
+                                                    {
+                                                        <text>deleted</text>
+                                                    }
+                                                    else if (activity.ActivityType == CloudStorage.Models.ActivityType.FileShared)
+                                                    {
+                                                        <text>shared</text>
+                                                    }
+                                                    else
+                                                    {
+                                                        <text>modified</text>
+                                                    }
+                                                </span>
+                                                <strong>@activity.StorageItem.Name</strong>
+                                            }
+                                        </p>
+                                        @if (!string.IsNullOrEmpty(activity.Description))
+                                        {
+                                            <p class="card-text text-muted mb-0">
+                                                <small>@activity.Description</small>
+                                            </p>
+                                        }
+                                    </div>
+                                    <div class="text-end">
+                                        <small class="text-muted">
+                                            @{
+                                                var timeSpan = DateTime.UtcNow - activity.Timestamp;
+                                                if (timeSpan.TotalMinutes < 1)
+                                                {
+                                                    <text>just now</text>
+                                                }
+                                                else if (timeSpan.TotalMinutes < 60)
+                                                {
+                                                    <text>@((int)timeSpan.TotalMinutes)m ago</text>
+                                                }
+                                                else if (timeSpan.TotalHours < 24)
+                                                {
+                                                    <text>@((int)timeSpan.TotalHours)h ago</text>
+                                                }
+                                                else if (timeSpan.TotalDays < 7)
+                                                {
+                                                    <text>@((int)timeSpan.TotalDays)d ago</text>
+                                                }
+                                                else
+                                                {
+                                                    @activity.Timestamp.ToLocalTime().ToString("MMM dd")
+                                                }
+                                            }
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="card">
+            <div class="card-body text-center py-5">
+                <i class="fas fa-clock fa-4x text-muted mb-3"></i>
+                <h4 class="text-muted">No Recent Activity</h4>
+                <p class="text-muted">Start working with your files to see activity here.</p>
+            </div>
+        </div>
+    }
+</div>
+
+<style>
+    .timeline {
+        position: relative;
+        padding-left: 30px;
+    }
+
+    .timeline::before {
+        content: '';
+        position: absolute;
+        left: 15px;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: #e0e0e0;
+    }
+
+    .timeline-item {
+        position: relative;
+    }
+
+    .timeline-marker {
+        position: absolute;
+        left: -23px;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: white;
+        border: 2px solid #e0e0e0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1;
+    }
+
+    .timeline-content {
+        margin-left: 20px;
+    }
+</style>

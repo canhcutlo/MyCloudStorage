@@ -719,7 +719,6 @@ C:\Project\MyCloudStorage\bin\Debug\net9.0\System.Numerics.Tensors.dll
 C:\Project\MyCloudStorage\bin\Debug\net9.0\Tesseract.dll
 C:\Project\MyCloudStorage\bin\Debug\net9.0\ZString.dll
 C:\Project\MyCloudStorage\bin\Debug\net9.0\runtimes\win\lib\net9.0\System.Diagnostics.EventLog.dll
-C:\Project\MyCloudStorage\obj\Debug\net9.0\compressed\xj9e7fdjty-zkswf2w8ip.gz
 C:\Project\MyCloudStorage\bin\Debug\net9.0\Humanizer.dll
 C:\Project\MyCloudStorage\bin\Debug\net9.0\Microsoft.Build.Locator.dll
 C:\Project\MyCloudStorage\bin\Debug\net9.0\Microsoft.CodeAnalysis.dll
@@ -801,3 +800,6 @@ C:\Project\MyCloudStorage\bin\Debug\net9.0\ru\Microsoft.CodeAnalysis.Workspaces.
 C:\Project\MyCloudStorage\bin\Debug\net9.0\tr\Microsoft.CodeAnalysis.Workspaces.MSBuild.BuildHost.resources.dll
 C:\Project\MyCloudStorage\bin\Debug\net9.0\zh-Hans\Microsoft.CodeAnalysis.Workspaces.MSBuild.BuildHost.resources.dll
 C:\Project\MyCloudStorage\bin\Debug\net9.0\zh-Hant\Microsoft.CodeAnalysis.Workspaces.MSBuild.BuildHost.resources.dll
+C:\Project\MyCloudStorage\obj\Debug\net9.0\compressed\xj9e7fdjty-xjxl9hmt3x.gz
+C:\Project\MyCloudStorage\obj\Debug\net9.0\compressed\iqtdqvyqw5-t047evo5zr.gz
+C:\Project\MyCloudStorage\obj\Debug\net9.0\compressed\bd7c292apf-ssjn6rxokv.gz
