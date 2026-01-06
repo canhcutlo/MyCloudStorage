@@ -1,0 +1,672 @@
+/* ============================================
+   DARK MODE THEME STYLES
+   ============================================ */
+
+:root {
+    /* Light Mode Colors (Default) */
+    --bg-primary: #ffffff;
+    --bg-secondary: #f8f9fa;
+    --bg-tertiary: #e9ecef;
+    --text-primary: #212529;
+    --text-secondary: #6c757d;
+    --text-muted: #adb5bd;
+    --border-color: #dee2e6;
+    --card-bg: #ffffff;
+    --card-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    --input-bg: #ffffff;
+    --input-border: #ced4da;
+    --navbar-bg: #0d6efd;
+    --dropdown-bg: #ffffff;
+    --table-bg: #ffffff;
+    --table-striped-bg: rgba(0, 0, 0, 0.05);
+    --table-hover-bg: rgba(0, 0, 0, 0.075);
+    --modal-bg: #ffffff;
+    --modal-backdrop: rgba(0, 0, 0, 0.5);
+    --alert-bg: #d1ecf1;
+    --alert-border: #bee5eb;
+    --alert-text: #0c5460;
+}
+
+[data-theme="dark"] {
+    /* Dark Mode Colors */
+    --bg-primary: #1a1a1a;
+    --bg-secondary: #2d2d2d;
+    --bg-tertiary: #3a3a3a;
+    --text-primary: #f5f5f5;
+    --text-secondary: #c0c0c0;
+    --text-muted: #999999;
+    --border-color: #404040;
+    --card-bg: #2d2d2d;
+    --card-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.5);
+    --input-bg: #3a3a3a;
+    --input-border: #505050;
+    --navbar-bg: #0a4a8a;
+    --dropdown-bg: #2d2d2d;
+    --table-bg: #2d2d2d;
+    --table-striped-bg: rgba(255, 255, 255, 0.05);
+    --table-hover-bg: rgba(255, 255, 255, 0.15);
+    --modal-bg: #2d2d2d;
+    --modal-backdrop: rgba(0, 0, 0, 0.8);
+    --alert-bg: #1e3a4a;
+    --alert-border: #2d5a6f;
+    --alert-text: #9fc5d9;
+}
+
+/* ============================================
+   DARK MODE BODY & GENERAL STYLES
+   ============================================ */
+
+body.dark-mode {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+body.dark-mode .container,
+body.dark-mode main {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+/* ============================================
+   NAVBAR & HEADER
+   ============================================ */
+
+body.dark-mode .navbar {
+    background-color: var(--navbar-bg) !important;
+}
+
+body.dark-mode .navbar-brand,
+body.dark-mode .nav-link {
+    color: #ffffff !important;
+}
+
+body.dark-mode #themeToggle {
+    background: transparent;
+    border: none;
+    padding: 0.5rem;
+}
+
+body.dark-mode #themeToggle:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 0.25rem;
+}
+
+/* ============================================
+   CARDS & PANELS
+   ============================================ */
+
+body.dark-mode .card {
+    background-color: var(--card-bg);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+    box-shadow: var(--card-shadow);
+}
+
+body.dark-mode .card-header {
+    background-color: var(--bg-tertiary);
+    border-bottom-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+body.dark-mode .card-body {
+    background-color: var(--card-bg);
+    color: var(--text-primary);
+}
+
+body.dark-mode .card-footer {
+    background-color: var(--bg-tertiary);
+    border-top-color: var(--border-color);
+}
+
+/* ============================================
+   FORMS & INPUTS
+   ============================================ */
+
+body.dark-mode .form-control,
+body.dark-mode .form-select {
+    background-color: var(--input-bg);
+    border-color: var(--input-border);
+    color: var(--text-primary);
+}
+
+body.dark-mode .form-control:focus,
+body.dark-mode .form-select:focus {
+    background-color: var(--input-bg);
+    border-color: #80bdff;
+    color: var(--text-primary);
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
+body.dark-mode .form-control::placeholder {
+    color: var(--text-muted);
+}
+
+body.dark-mode .form-label {
+    color: var(--text-primary);
+}
+
+body.dark-mode .form-check-label {
+    color: var(--text-primary);
+}
+
+body.dark-mode .input-group-text {
+    background-color: var(--bg-tertiary);
+    border-color: var(--input-border);
+    color: var(--text-primary);
+}
+
+/* ============================================
+   TABLES
+   ============================================ */
+
+body.dark-mode .table {
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+
+body.dark-mode .table thead th {
+    background-color: var(--bg-tertiary);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+body.dark-mode .table tbody tr {
+    background-color: var(--table-bg);
+    border-color: var(--border-color);
+}
+
+body.dark-mode .table tbody tr td,
+body.dark-mode .table tbody tr th {
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+
+body.dark-mode .table-striped > tbody > tr:nth-of-type(odd) {
+    background-color: var(--table-striped-bg);
+}
+
+body.dark-mode .table-striped > tbody > tr:nth-of-type(odd) > * {
+    color: var(--text-primary);
+}
+
+body.dark-mode .table-hover > tbody > tr:hover {
+    background-color: var(--table-hover-bg) !important;
+    color: var(--text-primary);
+}
+
+body.dark-mode .table-hover > tbody > tr:hover > * {
+    color: var(--text-primary) !important;
+}
+
+body.dark-mode .table-hover > tbody > tr:hover a {
+    color: var(--text-primary) !important;
+}
+
+body.dark-mode .table-hover > tbody > tr:hover .text-muted,
+body.dark-mode .table-hover > tbody > tr:hover small {
+    color: var(--text-secondary) !important;
+}
+
+body.dark-mode .table-hover > tbody > tr:hover i,
+body.dark-mode .table-hover > tbody > tr:hover .fas,
+body.dark-mode .table-hover > tbody > tr:hover .far,
+body.dark-mode .table-hover > tbody > tr:hover .bi {
+    color: var(--text-primary) !important;
+}
+
+body.dark-mode .table > tbody > tr:hover {
+    background-color: var(--table-hover-bg) !important;
+}
+
+body.dark-mode .table > tbody > tr:hover td,
+body.dark-mode .table > tbody > tr:hover th {
+    background-color: transparent !important;
+    color: var(--text-primary) !important;
+}
+
+body.dark-mode .table > tbody > tr:hover td a,
+body.dark-mode .table > tbody > tr:hover th a {
+    color: var(--text-primary) !important;
+}
+
+body.dark-mode .table > tbody > tr:hover td i,
+body.dark-mode .table > tbody > tr:hover th i,
+body.dark-mode .table > tbody > tr:hover td .fas,
+body.dark-mode .table > tbody > tr:hover th .fas,
+body.dark-mode .table > tbody > tr:hover td .far,
+body.dark-mode .table > tbody > tr:hover th .far,
+body.dark-mode .table > tbody > tr:hover td .bi,
+body.dark-mode .table > tbody > tr:hover th .bi {
+    color: var(--text-primary) !important;
+}
+
+body.dark-mode .table > tbody > tr:hover td .badge,
+body.dark-mode .table > tbody > tr:hover th .badge {
+    filter: brightness(1.2);
+}
+
+body.dark-mode .table-bordered {
+    border-color: var(--border-color);
+}
+
+body.dark-mode .table-bordered td,
+body.dark-mode .table-bordered th {
+    border-color: var(--border-color);
+}
+
+/* ============================================
+   BUTTONS & LINKS
+   ============================================ */
+
+body.dark-mode .btn-outline-primary {
+    color: #6ea8fe;
+    border-color: #6ea8fe;
+}
+
+body.dark-mode .btn-outline-primary:hover {
+    background-color: #6ea8fe;
+    border-color: #6ea8fe;
+    color: #000;
+}
+
+body.dark-mode .btn-outline-secondary {
+    color: #adb5bd;
+    border-color: #6c757d;
+}
+
+body.dark-mode .btn-outline-secondary:hover {
+    background-color: #6c757d;
+    border-color: #6c757d;
+    color: #fff;
+}
+
+body.dark-mode .btn-link {
+    color: #6ea8fe;
+}
+
+body.dark-mode a {
+    color: #6ea8fe;
+}
+
+body.dark-mode a:hover {
+    color: #9ec5fe;
+}
+
+/* ============================================
+   MODALS
+   ============================================ */
+
+body.dark-mode .modal-content {
+    background-color: var(--modal-bg);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+body.dark-mode .modal-header {
+    background-color: var(--bg-tertiary);
+    border-bottom-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+body.dark-mode .modal-body {
+    background-color: var(--modal-bg);
+    color: var(--text-primary);
+}
+
+body.dark-mode .modal-footer {
+    background-color: var(--bg-tertiary);
+    border-top-color: var(--border-color);
+}
+
+body.dark-mode .modal-backdrop {
+    background-color: var(--modal-backdrop);
+}
+
+body.dark-mode .btn-close {
+    filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+/* ============================================
+   DROPDOWNS
+   ============================================ */
+
+body.dark-mode .dropdown-menu {
+    background-color: var(--dropdown-bg);
+    border-color: var(--border-color);
+}
+
+body.dark-mode .dropdown-item {
+    color: var(--text-primary);
+}
+
+body.dark-mode .dropdown-item:hover,
+body.dark-mode .dropdown-item:focus {
+    background-color: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+body.dark-mode .dropdown-divider {
+    border-top-color: var(--border-color);
+}
+
+/* ============================================
+   ALERTS & NOTIFICATIONS
+   ============================================ */
+
+body.dark-mode .alert {
+    background-color: var(--alert-bg);
+    border-color: var(--alert-border);
+    color: var(--alert-text);
+}
+
+body.dark-mode .alert-info {
+    background-color: #1e3a4a;
+    border-color: #2d5a6f;
+    color: #9fc5d9;
+}
+
+body.dark-mode .alert-success {
+    background-color: #1e4a2a;
+    border-color: #2d6f42;
+    color: #9fd9b0;
+}
+
+body.dark-mode .alert-warning {
+    background-color: #4a3a1e;
+    border-color: #6f5a2d;
+    color: #d9c59f;
+}
+
+body.dark-mode .alert-danger {
+    background-color: #4a1e1e;
+    border-color: #6f2d2d;
+    color: #d99f9f;
+}
+
+/* ============================================
+   BREADCRUMBS & NAVIGATION
+   ============================================ */
+
+body.dark-mode .breadcrumb {
+    background-color: var(--bg-secondary);
+}
+
+body.dark-mode .breadcrumb-item {
+    color: var(--text-secondary);
+}
+
+body.dark-mode .breadcrumb-item.active {
+    color: var(--text-primary);
+}
+
+body.dark-mode .breadcrumb-item + .breadcrumb-item::before {
+    color: var(--text-muted);
+}
+
+body.dark-mode .page-item.disabled .page-link {
+    background-color: var(--bg-secondary);
+    border-color: var(--border-color);
+    color: var(--text-muted);
+}
+
+body.dark-mode .page-link {
+    background-color: var(--bg-secondary);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+body.dark-mode .page-link:hover {
+    background-color: var(--bg-tertiary);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+/* ============================================
+   BADGES & LABELS
+   ============================================ */
+
+body.dark-mode .badge {
+    color: #fff;
+}
+
+body.dark-mode .badge.bg-secondary {
+    background-color: #6c757d !important;
+}
+
+/* ============================================
+   LIST GROUPS
+   ============================================ */
+
+body.dark-mode .list-group-item {
+    background-color: var(--card-bg);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+body.dark-mode .list-group-item:hover {
+    background-color: var(--bg-tertiary);
+}
+
+body.dark-mode .list-group-item.active {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+/* ============================================
+   PROGRESS BARS
+   ============================================ */
+
+body.dark-mode .progress {
+    background-color: var(--bg-tertiary);
+}
+
+/* ============================================
+   FOOTER
+   ============================================ */
+
+body.dark-mode .footer {
+    background-color: var(--bg-secondary);
+    border-top-color: var(--border-color);
+    color: var(--text-muted);
+}
+
+/* ============================================
+   TEXT & TYPOGRAPHY
+   ============================================ */
+
+body.dark-mode .text-muted {
+    color: var(--text-muted) !important;
+}
+
+body.dark-mode .text-dark {
+    color: var(--text-primary) !important;
+}
+
+body.dark-mode h1, body.dark-mode h2, body.dark-mode h3,
+body.dark-mode h4, body.dark-mode h5, body.dark-mode h6 {
+    color: var(--text-primary);
+}
+
+body.dark-mode p {
+    color: var(--text-primary);
+}
+
+body.dark-mode small {
+    color: var(--text-secondary);
+}
+
+/* ============================================
+   BORDERS & DIVIDERS
+   ============================================ */
+
+body.dark-mode .border,
+body.dark-mode .border-top,
+body.dark-mode .border-bottom,
+body.dark-mode .border-start,
+body.dark-mode .border-end {
+    border-color: var(--border-color) !important;
+}
+
+body.dark-mode hr {
+    border-color: var(--border-color);
+    opacity: 0.25;
+}
+
+/* ============================================
+   SPECIFIC COMPONENT OVERRIDES
+   ============================================ */
+
+/* File/Folder Icons */
+body.dark-mode .fas,
+body.dark-mode .far,
+body.dark-mode .bi {
+    color: inherit;
+}
+
+/* Storage Usage */
+body.dark-mode .card-body h6 {
+    color: var(--text-secondary);
+}
+
+body.dark-mode .card-body h4 {
+    color: var(--text-primary);
+}
+
+/* Drop Zone for Drag & Drop */
+body.dark-mode .drop-zone {
+    background-color: var(--bg-secondary);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+body.dark-mode .drop-zone:hover {
+    background-color: var(--bg-tertiary);
+    border-color: #6ea8fe;
+}
+
+body.dark-mode .drop-zone.drag-over {
+    background-color: rgba(13, 110, 253, 0.1);
+    border-color: #0d6efd;
+}
+
+/* Bulk Actions Toolbar */
+body.dark-mode .bulk-actions-toolbar {
+    background-color: var(--bg-tertiary);
+    border-color: var(--border-color);
+}
+
+/* Timeline (Version History) */
+body.dark-mode .timeline {
+    border-left-color: var(--border-color);
+}
+
+body.dark-mode .timeline-item {
+    background-color: var(--card-bg);
+    border-color: var(--border-color);
+}
+
+/* Code blocks */
+body.dark-mode code,
+body.dark-mode pre {
+    background-color: var(--bg-tertiary);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+
+body.dark-mode kbd {
+    background-color: var(--bg-tertiary);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+
+/* ============================================
+   AUTH PAGES DARK MODE
+   ============================================ */
+
+body.dark-mode .auth-page .right-panel {
+    background-color: var(--bg-primary);
+}
+
+body.dark-mode .auth-page .auth-card {
+    background-color: var(--card-bg);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+
+body.dark-mode .auth-page .auth-title {
+    color: var(--text-primary);
+}
+
+body.dark-mode .auth-page .auth-subtitle {
+    color: var(--text-secondary);
+}
+
+body.dark-mode .auth-page .form-label {
+    color: var(--text-primary);
+}
+
+body.dark-mode .auth-page .footer-text {
+    color: var(--text-secondary);
+}
+
+/* ============================================
+   SMOOTH TRANSITIONS
+   ============================================ */
+
+body,
+.card,
+.modal-content,
+.table,
+.form-control,
+.btn,
+.dropdown-menu,
+.list-group-item {
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+/* ============================================
+   SCROLLBAR STYLING (WEBKIT BROWSERS)
+   ============================================ */
+
+body.dark-mode ::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+}
+
+body.dark-mode ::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+}
+
+body.dark-mode ::-webkit-scrollbar-thumb {
+    background: var(--bg-tertiary);
+    border-radius: 6px;
+}
+
+body.dark-mode ::-webkit-scrollbar-thumb:hover {
+    background: #505050;
+}
+
+/* ============================================
+   FIREFOX SCROLLBAR
+   ============================================ */
+
+body.dark-mode {
+    scrollbar-color: var(--bg-tertiary) var(--bg-secondary);
+}
+
+/* ============================================
+   PRINT MEDIA - DISABLE DARK MODE
+   ============================================ */
+
+@media print {
+    body.dark-mode {
+        background-color: white !important;
+        color: black !important;
+    }
+    
+    body.dark-mode * {
+        background-color: white !important;
+        color: black !important;
+        border-color: black !important;
+    }
+}

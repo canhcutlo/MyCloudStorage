@@ -1,0 +1,42 @@
+1. Tại sao lại chọn Naive Bayes? (Lý do chọn mô hình)
+Đây là câu hỏi nền tảng mà bạn cần trả lời được.
+
+Hiệu quả với dữ liệu nhiều chiều: Dữ liệu đầu vào của bạn sau khi qua bước One-Hot Encoding sẽ có rất nhiều cột (do mỗi quốc gia, mỗi loại giao dịch đều tách thành cột riêng). Naive Bayes xử lý rất tốt các bài toán có số lượng đặc trưng lớn (high dimensionality) mà không bị chậm.
+
+Tốc độ: So sánh với các mô hình phức tạp như Deep Learning, Naive Bayes tính toán cực nhanh vì nó chỉ dựa trên các phép toán xác suất đơn giản. Điều này cực kỳ quan trọng trong hệ thống tài chính cần xử lý hàng triệu giao dịch mỗi giây.
+
+Khả năng giải thích: Bạn có thể dễ dàng giải thích tại sao mô hình đưa ra quyết định (dựa trên xác suất của từng đặc trưng), điều này quan trọng hơn là độ chính xác tuyệt đối trong nhiều trường hợp.
+
+2. "Gaussian" trong Gaussian Naive Bayes nghĩa là gì?
+Bạn cần hiểu rõ cách mô hình xử lý dữ liệu số (ở đây là USD_amount):
+
+Giả định phân phối chuẩn: Mô hình giả định rằng số tiền giao dịch của các giao dịch "Bình thường" sẽ tập trung quanh một giá trị trung bình nào đó và giảm dần về hai phía (hình chuông). Tương tự cho giao dịch "Gian lận".
+
+Cách phát hiện: Khi một giao dịch mới có số tiền nằm quá xa vùng tập trung của các giao dịch "Bình thường" (tức là xác suất xuất hiện rất thấp theo đường cong Gaussian của lớp Normal), nhưng lại rơi vào vùng có xác suất cao hơn của lớp "Gian lận", mô hình sẽ cảnh báo.
+
+Nghiên cứu thêm: Tìm hiểu về công thức tính xác suất hậu nghiệm (Posterior Probability) của Naive Bayes và cách hàm mật độ xác suất Gaussian (Gaussian PDF) được sử dụng.
+
+3. Tầm quan trọng của Tiền xử lý dữ liệu (Preprocessing)
+Trong mô hình này, bước tiền xử lý quyết định đến 50% thành công. Bạn cần hiểu sâu:
+
+Tại sao phải One-Hot Encoding? Máy tính không hiểu chữ "Việt Nam" hay "Mỹ". Nó cần biến đổi thành các vector [0, 1, 0, ...] để tính toán xác suất. Nếu không làm bước này, thuật toán sẽ không chạy được.
+
+Tại sao phải StandardScaler? Số tiền có thể từ 1 USD đến 1 triệu USD. Nếu không đưa về cùng một thang đo (ví dụ: trung bình = 0, độ lệch chuẩn = 1), giá trị số tiền sẽ lấn át hoàn toàn các thông tin về quốc gia hay loại giao dịch, làm sai lệch kết quả.
+
+4. Vấn đề Mất cân bằng dữ liệu (Imbalanced Data)
+Đây là đặc thù của bài toán phát hiện gian lận (fraud detection).
+
+Thực tế: Trong 1 triệu giao dịch, có thể chỉ có 10 giao dịch là giả. Nếu mô hình cứ đoán tất cả là "Thật", nó vẫn đúng 99.999% nhưng lại vô dụng.
+
+Giải pháp: Kỹ thuật RandomUnderSampler đã được dùng để loại bỏ bớt các mẫu "Thật" dư thừa trong lúc huấn luyện, giúp mô hình có cơ hội học kỹ hơn về các mẫu "Giả". Bạn cần hiểu cơ chế này để giải thích tại sao mô hình lại nhạy bén với gian lận.
+
+5. Ý nghĩa của các chỉ số đánh giá (Metrics)
+Đừng chỉ nhìn vào Accuracy (Độ chính xác).
+
+Precision (Độ chính xác dương tính): Trong số các giao dịch báo là Gian lận, bao nhiêu % là gian lận thật? (Tránh làm phiền khách hàng oan).
+
+Recall (Độ phủ): Trong số tất cả các giao dịch Gian lận thực tế, mô hình bắt được bao nhiêu %? (Tránh để lọt lưới tội phạm).
+
+F1-Score: Sự cân bằng giữa Precision và Recall. Trong bài toán này, Recall thường được ưu tiên hơn vì để lọt một giao dịch giả nguy hiểm hơn là nghi ngờ nhầm một giao dịch thật.
+
+Tóm lại: Để hiểu sâu, hãy tập trung vào "Tại sao" (Why) hơn là "Như thế nào" (How). Tại sao lại dùng Gaussian cho tiền? Tại sao phải cân bằng dữ liệu? Tại sao Accuracy không phải là tất cả? Trả lời được những câu hỏi này, bạn sẽ làm chủ hoàn toàn mô hình của mình.

@@ -803,3 +803,9 @@ C:\Project\MyCloudStorage\bin\Debug\net9.0\zh-Hant\Microsoft.CodeAnalysis.Worksp
 C:\Project\MyCloudStorage\obj\Debug\net9.0\compressed\xj9e7fdjty-xjxl9hmt3x.gz
 C:\Project\MyCloudStorage\obj\Debug\net9.0\compressed\iqtdqvyqw5-t047evo5zr.gz
 C:\Project\MyCloudStorage\obj\Debug\net9.0\compressed\bd7c292apf-ssjn6rxokv.gz
+C:\Project\MyCloudStorage\obj\Debug\net9.0\compressed\xb10s67xxr-qvol34fknw.gz
+C:\Project\MyCloudStorage\obj\Debug\net9.0\compressed\vqrk1sjrwx-ql1xakzf0z.gz
+C:\Project\MyCloudStorage\obj\Debug\net9.0\compressed\ntozzu71ny-70s48c7m9j.gz
+C:\Project\MyCloudStorage\obj\Debug\net9.0\compressed\faldejnzh0-t047evo5zr.gz
+C:\Project\MyCloudStorage\obj\Debug\net9.0\compressed\hj2325tz0i-puq04mn7dw.gz
+C:\Project\MyCloudStorage\obj\Debug\net9.0\compressed\c1w77mdlyz-3qdys3p0an.gz

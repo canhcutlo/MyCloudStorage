@@ -19,12 +19,20 @@
             <a asp-action="AICreateFolder" asp-route-parentFolderId="@currentFolderId" class="btn btn-info text-white">
                 <i class="bi bi-robot"></i> AI Create
             </a>
+            <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#keyboardShortcutsModal" title="Keyboard Shortcuts (F1 or ?)">
+                <i class="fas fa-keyboard"></i>
+            </button>
         </div>
     }
     else
     {
-        <div class="alert alert-info mb-0">
-            <i class="fas fa-info-circle"></i> Viewing shared folder (Read-only)
+        <div class="d-flex align-items-center gap-2">
+            <div class="alert alert-info mb-0">
+                <i class="fas fa-info-circle"></i> Viewing shared folder (Read-only)
+            </div>
+            <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#keyboardShortcutsModal" title="Keyboard Shortcuts (F1 or ?)">
+                <i class="fas fa-keyboard"></i>
+            </button>
         </div>
     }
 </div>
@@ -154,6 +162,52 @@
     </div>
 }
 
+<!-- Drag and Drop Upload Zone -->
+@if (Model.CanEditCurrentFolder)
+{
+    <div id="dropZone" class="drop-zone mb-3">
+        <div class="drop-zone-content">
+            <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+            <h5>Drag & Drop Files Here</h5>
+            <p class="text-muted">or click to browse</p>
+            <input type="file" id="fileInput" multiple hidden />
+        </div>
+        <div id="uploadProgress" class="upload-progress" style="display:none;">
+            <div class="progress mb-2">
+                <div id="uploadProgressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar"></div>
+            </div>
+            <small id="uploadStatus" class="text-muted"></small>
+        </div>
+    </div>
+}
+
+<!-- Bulk Actions Toolbar -->
+<div id="bulkActionsToolbar" class="bulk-actions-toolbar mb-3" style="display:none;">
+    <div class="card">
+        <div class="card-body py-2">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <strong id="selectedCount">0</strong> items selected
+                </div>
+                <div class="btn-group">
+                    <button type="button" class="btn btn-sm btn-primary" onclick="bulkDownload()">
+                        <i class="fas fa-download"></i> Download
+                    </button>
+                    <button type="button" class="btn btn-sm btn-warning" onclick="showBulkMoveModal()">
+                        <i class="fas fa-folder"></i> Move
+                    </button>
+                    <button type="button" class="btn btn-sm btn-danger" onclick="bulkDelete()">
+                        <i class="fas fa-trash"></i> Delete
+                    </button>
+                    <button type="button" class="btn btn-sm btn-secondary" onclick="clearSelection()">
+                        <i class="fas fa-times"></i> Clear
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- File/Folder List -->
 <div class="card">
     <div class="card-body">
@@ -163,6 +217,12 @@
                 <table class="table table-hover">
                     <thead>
                         <tr>
+                            @if (Model.CanEditCurrentFolder)
+                            {
+                                <th style="width: 40px;">
+                                    <input type="checkbox" id="selectAll" class="form-check-input" onchange="toggleSelectAll(this)" />
+                                </th>
+                            }
                             <th>Name</th>
                             <th>Type</th>
                             <th>Size</th>
@@ -173,7 +233,13 @@
                     <tbody>
                         @foreach (var item in Model.Items)
                         {
-                            <tr>
+                            <tr class="item-row" data-item-id="@item.Id" data-item-type="@item.Type">
+                                @if (Model.CanEditCurrentFolder)
+                                {
+                                    <td>
+                                        <input type="checkbox" class="form-check-input item-checkbox" value="@item.Id" onchange="updateBulkActions()" />
+                                    </td>
+                                }
                                 <td>
                                     @if (item.Type == CloudStorage.Models.StorageItemType.Folder)
                                     {
@@ -530,7 +596,491 @@
                 alert('An error occurred');
             }
         }
+
+        // Drag and Drop Upload
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const uploadProgress = document.getElementById('uploadProgress');
+        const uploadProgressBar = document.getElementById('uploadProgressBar');
+        const uploadStatus = document.getElementById('uploadStatus');
+
+        if (dropZone && fileInput) {
+            dropZone.addEventListener('click', () => fileInput.click());
+            
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.classList.add('drag-over');
+            });
+            
+            dropZone.addEventListener('dragleave', () => {
+                dropZone.classList.remove('drag-over');
+            });
+            
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('drag-over');
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    uploadFiles(files);
+                }
+            });
+            
+            fileInput.addEventListener('change', (e) => {
+                const files = e.target.files;
+                if (files.length > 0) {
+                    uploadFiles(files);
+                }
+            });
+        }
+
+        async function uploadFiles(files) {
+            const formData = new FormData();
+            for (let i = 0; i < files.length; i++) {
+                formData.append('files', files[i]);
+            }
+            formData.append('folderId', '@currentFolderId' || '');
+
+            uploadProgress.style.display = 'block';
+            dropZone.querySelector('.drop-zone-content').style.display = 'none';
+            uploadStatus.textContent = `Uploading ${files.length} file(s)...`;
+            uploadProgressBar.style.width = '0%';
+
+            try {
+                const xhr = new XMLHttpRequest();
+                
+                xhr.upload.addEventListener('progress', (e) => {
+                    if (e.lengthComputable) {
+                        const percentComplete = (e.loaded / e.total) * 100;
+                        uploadProgressBar.style.width = percentComplete + '%';
+                        uploadProgressBar.textContent = Math.round(percentComplete) + '%';
+                    }
+                });
+
+                xhr.addEventListener('load', () => {
+                    if (xhr.status === 200) {
+                        const result = JSON.parse(xhr.responseText);
+                        if (result.success) {
+                            uploadStatus.textContent = `Successfully uploaded ${result.uploadedCount} file(s)!`;
+                            setTimeout(() => location.reload(), 1500);
+                        } else {
+                            uploadStatus.textContent = 'Upload completed with errors';
+                            if (result.errors && result.errors.length > 0) {
+                                alert('Errors:\\n' + result.errors.join('\\n'));
+                            }
+                            setTimeout(() => {
+                                uploadProgress.style.display = 'none';
+                                dropZone.querySelector('.drop-zone-content').style.display = 'block';
+                            }, 3000);
+                        }
+                    }
+                });
+
+                xhr.open('POST', '@Url.Action("UploadMultiple", "Storage")');
+                xhr.send(formData);
+
+            } catch (error) {
+                console.error('Upload error:', error);
+                uploadStatus.textContent = 'Upload failed';
+                setTimeout(() => {
+                    uploadProgress.style.display = 'none';
+                    dropZone.querySelector('.drop-zone-content').style.display = 'block';
+                }, 3000);
+            }
+        }
+
+        // Bulk Operations
+        function toggleSelectAll(checkbox) {
+            const itemCheckboxes = document.querySelectorAll('.item-checkbox');
+            itemCheckboxes.forEach(cb => cb.checked = checkbox.checked);
+            updateBulkActions();
+        }
+
+        function updateBulkActions() {
+            const selectedCheckboxes = document.querySelectorAll('.item-checkbox:checked');
+            const bulkToolbar = document.getElementById('bulkActionsToolbar');
+            const selectedCount = document.getElementById('selectedCount');
+            
+            if (selectedCheckboxes.length > 0) {
+                bulkToolbar.style.display = 'block';
+                selectedCount.textContent = selectedCheckboxes.length;
+            } else {
+                bulkToolbar.style.display = 'none';
+                document.getElementById('selectAll').checked = false;
+            }
+        }
+
+        function getSelectedIds() {
+            const selectedCheckboxes = document.querySelectorAll('.item-checkbox:checked');
+            return Array.from(selectedCheckboxes).map(cb => parseInt(cb.value));
+        }
+
+        function clearSelection() {
+            document.querySelectorAll('.item-checkbox').forEach(cb => cb.checked = false);
+            document.getElementById('selectAll').checked = false;
+            updateBulkActions();
+        }
+
+        async function bulkDelete() {
+            const itemIds = getSelectedIds();
+            if (itemIds.length === 0) return;
+
+            if (!confirm(`Are you sure you want to delete ${itemIds.length} item(s)?`)) return;
+
+            const formData = new FormData();
+            itemIds.forEach(id => formData.append('itemIds', id));
+            formData.append('__RequestVerificationToken', document.querySelector('input[name="__RequestVerificationToken"]').value);
+
+            try {
+                const response = await fetch('@Url.Action("BulkDelete", "Storage")', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    location.reload();
+                } else {
+                    alert(result.message || 'Failed to delete items');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred while deleting items');
+            }
+        }
+
+        async function bulkDownload() {
+            const itemIds = getSelectedIds();
+            if (itemIds.length === 0) return;
+
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '@Url.Action("BulkDownload", "Storage")';
+            
+            itemIds.forEach(id => {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'itemIds';
+                input.value = id;
+                form.appendChild(input);
+            });
+            
+            document.body.appendChild(form);
+            form.submit();
+            document.body.removeChild(form);
+        }
+
+        function showBulkMoveModal() {
+            const itemIds = getSelectedIds();
+            if (itemIds.length === 0) return;
+
+            const targetFolderId = prompt('Enter target folder ID (leave empty for root):');
+            if (targetFolderId === null) return;
+
+            bulkMove(itemIds, targetFolderId === '' ? null : parseInt(targetFolderId));
+        }
+
+        async function bulkMove(itemIds, targetFolderId) {
+            const formData = new FormData();
+            itemIds.forEach(id => formData.append('itemIds', id));
+            if (targetFolderId !== null) {
+                formData.append('targetFolderId', targetFolderId);
+            }
+            formData.append('__RequestVerificationToken', document.querySelector('input[name="__RequestVerificationToken"]').value);
+
+            try {
+                const response = await fetch('@Url.Action("BulkMove", "Storage")', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    location.reload();
+                } else {
+                    alert(result.message || 'Failed to move items');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred while moving items');
+            }
+        }
+
+        // ============================================
+        // Keyboard Shortcuts
+        // ============================================
+        
+        let selectedItemIndex = -1;
+        const itemRows = [];
+
+        function initializeKeyboardShortcuts() {
+            // Build array of selectable items
+            document.querySelectorAll('.item-checkbox').forEach((checkbox, index) => {
+                itemRows.push({
+                    checkbox: checkbox,
+                    row: checkbox.closest('tr'),
+                    itemId: parseInt(checkbox.value)
+                });
+            });
+
+            document.addEventListener('keydown', handleKeyboardShortcut);
+            
+            // Show keyboard shortcuts help on initial load (once)
+            if (!localStorage.getItem('keyboardShortcutsShown')) {
+                setTimeout(() => {
+                    const helpBtn = document.querySelector('[data-bs-target="#keyboardShortcutsModal"]');
+                    if (helpBtn) {
+                        const helpText = document.createElement('div');
+                        helpText.className = 'alert alert-info alert-dismissible fade show position-fixed bottom-0 end-0 m-3';
+                        helpText.style.zIndex = '9999';
+                        helpText.innerHTML = `
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            <strong><i class="fas fa-keyboard me-2"></i>Tip:</strong> Press <kbd>?</kbd> or <kbd>F1</kbd> to view keyboard shortcuts!
+                        `;
+                        document.body.appendChild(helpText);
+                        setTimeout(() => helpText.remove(), 8000);
+                        localStorage.setItem('keyboardShortcutsShown', 'true');
+                    }
+                }, 1000);
+            }
+        }
+
+        function handleKeyboardShortcut(e) {
+            // Don't trigger shortcuts when typing in inputs, textareas, or contenteditable elements
+            const target = e.target;
+            if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+                return;
+            }
+
+            // Ctrl/Cmd shortcuts
+            if (e.ctrlKey || e.metaKey) {
+                switch(e.key.toLowerCase()) {
+                    case 'a': // Select All
+                        e.preventDefault();
+                        selectAllItems();
+                        break;
+                    case 'd': // Deselect All
+                        e.preventDefault();
+                        deselectAllItems();
+                        break;
+                    case 'u': // Upload
+                        e.preventDefault();
+                        document.getElementById('fileInput')?.click();
+                        break;
+                    case 'n': // New Folder
+                        e.preventDefault();
+                        document.querySelector('[data-bs-target="#createFolderModal"]')?.click();
+                        break;
+                    case 'f': // Focus Search
+                        e.preventDefault();
+                        document.querySelector('input[name="searchQuery"]')?.focus();
+                        break;
+                    case 'r': // Refresh
+                        e.preventDefault();
+                        location.reload();
+                        break;
+                }
+
+                // Ctrl+Shift shortcuts
+                if (e.shiftKey) {
+                    switch(e.key.toLowerCase()) {
+                        case 'd': // Bulk Download
+                            e.preventDefault();
+                            if (getSelectedIds().length > 0) {
+                                document.getElementById('bulkDownloadBtn')?.click();
+                            }
+                            break;
+                        case 'm': // Bulk Move
+                            e.preventDefault();
+                            if (getSelectedIds().length > 0) {
+                                document.getElementById('bulkMoveBtn')?.click();
+                            }
+                            break;
+                    }
+                }
+            }
+
+            // Non-modifier shortcuts
+            switch(e.key) {
+                case 'Delete': // Delete selected items
+                    if (getSelectedIds().length > 0) {
+                        e.preventDefault();
+                        document.getElementById('bulkDeleteBtn')?.click();
+                    }
+                    break;
+                case 'F1': // Show keyboard shortcuts help
+                case '?':
+                    e.preventDefault();
+                    showKeyboardShortcuts();
+                    break;
+                case 'Escape': // Clear selection / Close modals
+                    e.preventDefault();
+                    deselectAllItems();
+                    // Close any open Bootstrap modals
+                    document.querySelectorAll('.modal.show').forEach(modal => {
+                        bootstrap.Modal.getInstance(modal)?.hide();
+                    });
+                    break;
+                case 'Backspace': // Go to parent folder
+                    if (!e.ctrlKey && !e.shiftKey) {
+                        e.preventDefault();
+                        const backButton = document.querySelector('a[href*="parentId="]');
+                        if (backButton) {
+                            backButton.click();
+                        }
+                    }
+                    break;
+                case 'ArrowDown': // Navigate down
+                    e.preventDefault();
+                    navigateItems(1);
+                    break;
+                case 'ArrowUp': // Navigate up
+                    e.preventDefault();
+                    navigateItems(-1);
+                    break;
+                case 'Enter': // Open selected item
+                    e.preventDefault();
+                    openSelectedItem();
+                    break;
+                case ' ': // Toggle selection (Space)
+                    e.preventDefault();
+                    toggleCurrentSelection();
+                    break;
+            }
+        }
+
+        function selectAllItems() {
+            const selectAllCheckbox = document.getElementById('selectAll');
+            if (selectAllCheckbox) {
+                selectAllCheckbox.checked = true;
+                toggleSelectAll();
+            }
+        }
+
+        function deselectAllItems() {
+            const selectAllCheckbox = document.getElementById('selectAll');
+            if (selectAllCheckbox) {
+                selectAllCheckbox.checked = false;
+                toggleSelectAll();
+            }
+            selectedItemIndex = -1;
+            clearHighlights();
+        }
+
+        function navigateItems(direction) {
+            if (itemRows.length === 0) return;
+
+            // Clear previous highlight
+            clearHighlights();
+
+            // Update index
+            selectedItemIndex += direction;
+            if (selectedItemIndex < 0) selectedItemIndex = 0;
+            if (selectedItemIndex >= itemRows.length) selectedItemIndex = itemRows.length - 1;
+
+            // Highlight current row
+            const currentRow = itemRows[selectedItemIndex];
+            if (currentRow) {
+                currentRow.row.classList.add('table-active');
+                currentRow.row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }
+
+        function clearHighlights() {
+            itemRows.forEach(item => {
+                item.row.classList.remove('table-active');
+            });
+        }
+
+        function toggleCurrentSelection() {
+            if (selectedItemIndex >= 0 && selectedItemIndex < itemRows.length) {
+                const currentItem = itemRows[selectedItemIndex];
+                currentItem.checkbox.checked = !currentItem.checkbox.checked;
+                updateBulkActions();
+            }
+        }
+
+        function openSelectedItem() {
+            if (selectedItemIndex >= 0 && selectedItemIndex < itemRows.length) {
+                const currentRow = itemRows[selectedItemIndex].row;
+                const link = currentRow.querySelector('a[href*="Index"]');
+                if (link) {
+                    link.click();
+                }
+            }
+        }
+
+        function showKeyboardShortcuts() {
+            const modal = new bootstrap.Modal(document.getElementById('keyboardShortcutsModal'));
+            modal.show();
+        }
+
+        // Initialize keyboard shortcuts when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initializeKeyboardShortcuts);
+        } else {
+            initializeKeyboardShortcuts();
+        }
     </script>
+
+    <style>
+        .drop-zone {
+            border: 3px dashed #ccc;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background-color: #f8f9fa;
+        }
+
+        .drop-zone:hover {
+            border-color: #007bff;
+            background-color: #e7f1ff;
+        }
+
+        .drop-zone.drag-over {
+            border-color: #28a745;
+            background-color: #d4edda;
+        }
+
+        .drop-zone-content i {
+            color: #6c757d;
+        }
+
+        .upload-progress {
+            padding: 20px;
+        }
+
+        .bulk-actions-toolbar {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .item-row {
+            transition: background-color 0.2s;
+        }
+
+        .item-checkbox:checked + .item-row,
+        .item-row:has(.item-checkbox:checked) {
+            background-color: #e7f1ff !important;
+        }
+
+        .table-active {
+            background-color: #fff3cd !important;
+            border-left: 3px solid #ffc107 !important;
+        }
+
+        kbd {
+            padding: 2px 6px;
+            font-size: 11px;
+            color: #fff;
+            background-color: #333;
+            border-radius: 3px;
+            box-shadow: inset 0 -1px 0 rgba(0,0,0,.25);
+            font-family: monospace;
+        }
+    </style>
 }
 
 <!-- Comments Modal -->
@@ -543,6 +1093,126 @@
             </div>
             <div class="modal-body" id="commentsModalContent">
                 <!-- Content loaded dynamically -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Keyboard Shortcuts Modal -->
+<div class="modal fade" id="keyboardShortcutsModal" tabindex="-1" aria-labelledby="keyboardShortcutsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title" id="keyboardShortcutsModalLabel">
+                    <i class="fas fa-keyboard me-2"></i>Keyboard Shortcuts
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="text-primary mb-3"><i class="fas fa-file-upload me-2"></i>File Operations</h6>
+                        <table class="table table-sm">
+                            <tbody>
+                                <tr>
+                                    <td><kbd>Ctrl</kbd> + <kbd>U</kbd></td>
+                                    <td>Upload files</td>
+                                </tr>
+                                <tr>
+                                    <td><kbd>Ctrl</kbd> + <kbd>N</kbd></td>
+                                    <td>Create new folder</td>
+                                </tr>
+                                <tr>
+                                    <td><kbd>Delete</kbd></td>
+                                    <td>Delete selected items</td>
+                                </tr>
+                                <tr>
+                                    <td><kbd>Backspace</kbd></td>
+                                    <td>Go to parent folder</td>
+                                </tr>
+                                <tr>
+                                    <td><kbd>Enter</kbd></td>
+                                    <td>Open selected item</td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <h6 class="text-success mb-3 mt-4"><i class="fas fa-check-square me-2"></i>Selection</h6>
+                        <table class="table table-sm">
+                            <tbody>
+                                <tr>
+                                    <td><kbd>Ctrl</kbd> + <kbd>A</kbd></td>
+                                    <td>Select all items</td>
+                                </tr>
+                                <tr>
+                                    <td><kbd>Ctrl</kbd> + <kbd>D</kbd></td>
+                                    <td>Deselect all items</td>
+                                </tr>
+                                <tr>
+                                    <td><kbd>Space</kbd></td>
+                                    <td>Toggle current selection</td>
+                                </tr>
+                                <tr>
+                                    <td><kbd>Esc</kbd></td>
+                                    <td>Clear selection</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="col-md-6">
+                        <h6 class="text-warning mb-3"><i class="fas fa-tasks me-2"></i>Bulk Operations</h6>
+                        <table class="table table-sm">
+                            <tbody>
+                                <tr>
+                                    <td><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>D</kbd></td>
+                                    <td>Bulk download (ZIP)</td>
+                                </tr>
+                                <tr>
+                                    <td><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>M</kbd></td>
+                                    <td>Bulk move</td>
+                                </tr>
+                                <tr>
+                                    <td><kbd>Delete</kbd></td>
+                                    <td>Bulk delete selected</td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <h6 class="text-info mb-3 mt-4"><i class="fas fa-arrows-alt me-2"></i>Navigation</h6>
+                        <table class="table table-sm">
+                            <tbody>
+                                <tr>
+                                    <td><kbd>↑</kbd> / <kbd>↓</kbd></td>
+                                    <td>Navigate through items</td>
+                                </tr>
+                                <tr>
+                                    <td><kbd>Ctrl</kbd> + <kbd>F</kbd></td>
+                                    <td>Focus search box</td>
+                                </tr>
+                                <tr>
+                                    <td><kbd>Ctrl</kbd> + <kbd>R</kbd></td>
+                                    <td>Refresh view</td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <h6 class="text-secondary mb-3 mt-4"><i class="fas fa-question-circle me-2"></i>Help</h6>
+                        <table class="table table-sm">
+                            <tbody>
+                                <tr>
+                                    <td><kbd>F1</kbd> or <kbd>?</kbd></td>
+                                    <td>Show this help</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="alert alert-info mt-4 mb-0">
+                    <i class="fas fa-lightbulb me-2"></i>
+                    <strong>Tip:</strong> Keyboard shortcuts don't work when typing in text fields or search boxes.
+                </div>
             </div>
         </div>
     </div>

@@ -1,0 +1,585 @@
+================================================================================
+                    CLOUD STORAGE PROJECT - FEATURES LIST
+================================================================================
+Project: MyCloudStorage
+Framework: ASP.NET Core 9.0 MVC
+Database: SQL Server (LocalDB)
+Created: 2025
+Last Updated: January 6, 2026
+
+================================================================================
+                         CORE FEATURES
+================================================================================
+
+1. USER AUTHENTICATION & MANAGEMENT
+   - User registration with email and password
+   - Secure login with ASP.NET Core Identity
+   - Password reset via email (Gmail SMTP)
+   - "Remember Me" functionality
+   - Account lockout after 5 failed attempts
+   - User profile management
+   - Storage quota tracking (5GB default per user)
+   - Used storage monitoring
+
+2. FILE & FOLDER MANAGEMENT
+   - Upload files (up to 100MB per file)
+   - Create and organize folders
+   - Rename files and folders
+   - Delete files and folders (soft delete)
+   - Move items between folders
+   - File integrity checking with MD5 hash
+   - MIME type detection for various file types
+   - Breadcrumb navigation
+   - Parent folder navigation
+
+3. FILE VERSIONING
+   - Automatic version creation when replacing files
+   - Version history tracking with sequential version numbers
+   - View complete history of all file versions
+   - Download previous versions
+   - Restore previous versions
+   - Delete specific versions
+   - Change descriptions for each version
+   - Version metadata (creator, date, size)
+   - Physical file backup in versions folder
+
+================================================================================
+                         SEARCH & DISCOVERY
+================================================================================
+
+4. SEMANTIC SEARCH (Vietnamese Support)
+   - Vietnamese accent normalization
+   - Matches files written without accents
+   - Common abbreviations recognition:
+     * T10, T.10 → tháng 10 (October)
+     * BC → báo cáo (report)
+     * TC → tài chính (financial)
+     * HD → hợp đồng (contract)
+     * KH → kế hoạch (plan)
+     * Q1-Q4 → Quarters
+   - Token-based similarity matching
+   - Relevance scoring
+   - Number-aware search for dates
+   - Separator normalization (underscores, hyphens, dots)
+   - Filter by file type (Files/Folders)
+
+5. SORTING FEATURES
+   - Sort by Name (A-Z / Z-A)
+   - Sort by Date (Newest First / Oldest First)
+   - Sort by Size (Smallest First / Largest First)
+   - Folders always appear before files
+   - Persistent sort preferences in URL
+
+================================================================================
+                         SHARING CAPABILITIES
+================================================================================
+
+6. FILE & FOLDER SHARING
+   - Share files and folders with other users
+   - Share with registered users via email
+   - Create public share links with access tokens
+   - Share permissions:
+     * View Only
+     * Download
+     * Editor
+     * Full Access/Owner
+   - Set expiration dates for shares
+   - Manage shared items
+   - View items shared with you
+   - View items you've shared
+   - Revoke share access
+
+7. SHARING EDIT FEATURES
+   - Editor permission allows:
+     * Upload files to shared folders
+     * Create subfolders in shared folders
+     * Rename files/folders in shared locations
+     * Delete items from shared locations
+   - Permission-based access control
+   - Owner preservation for shared items
+   - Storage quota counts toward folder owner
+   - Recursive permission checking
+
+8. GROUP SHARING
+   - Create contact groups for bulk sharing
+   - Add members manually or from sharing history
+   - Quick import contacts from sharing history
+   - Share with entire groups at once
+   - Manage group members
+   - Edit and delete groups
+   - Group-based access control
+
+================================================================================
+                         DOCUMENT PREVIEW & EDITING
+================================================================================
+
+9. DOCUMENT PREVIEW
+   - PDF preview with text extraction
+   - Word document preview (.docx)
+   - Excel preview (.xlsx, .xls) with multi-sheet support
+   - Image preview (.png, .jpg, .jpeg, .gif, .bmp)
+   - Text file preview (.txt)
+   - Page-by-page navigation
+   - Zoom controls (50% to 200%)
+   - Document metadata extraction
+   - OCR support for images (Tesseract)
+   - Download from preview
+
+10. VIDEO PREVIEW
+    - Supported formats: MP4, WebM, OGG, MOV, AVI, MKV, WMV, FLV
+    - HTML5 video player
+    - Custom playback controls
+    - Progress bar with seeking
+    - Volume control
+    - Theater mode
+    - Fullscreen support
+    - Keyboard shortcuts:
+      * Space: Play/Pause
+      * Left/Right arrows: Skip ±5 seconds
+      * Up/Down arrows: Volume control
+      * F: Fullscreen
+      * M: Mute/Unmute
+    - Video metadata (duration, resolution)
+
+11. TEXT EDITOR (In-Browser)
+    - Monaco Editor integration (VS Code engine)
+    - Syntax highlighting for 25+ languages
+    - Supported file types:
+      * Text & Documentation: .txt, .md, .markdown, .rtf, .log
+      * Web: .html, .css, .js, .jsx, .ts, .tsx
+      * Programming: .py, .java, .c, .cpp, .cs, .php, .rb, .go, .rs, .swift
+      * Config: .json, .xml, .yaml, .yml, .ini, .cfg, .conf
+      * Shell: .sh, .bash, .bat, .ps1
+      * SQL: .sql
+    - Live markdown preview
+    - Split view (edit + preview)
+    - Auto-save detection
+    - Keyboard shortcut (Ctrl+S)
+    - Unsaved changes warning
+    - Line numbers and minimap
+    - Word wrap
+    - Dark theme
+
+================================================================================
+                         USER INTERFACE ENHANCEMENTS
+================================================================================
+
+12. DRAG-AND-DROP UPLOAD
+    - Dedicated drop zone with visual feedback
+    - Multiple file upload simultaneously
+    - Real-time progress bar
+    - XHR-based upload with percentage tracking
+    - Auto-refresh after upload
+    - Error handling and display
+    - Visual states (default, drag over, uploading)
+
+13. BULK OPERATIONS
+    - Select multiple items with checkboxes
+    - Select all / Deselect all
+    - Bulk actions toolbar
+    - Bulk delete (move to trash)
+    - Bulk move to folder
+    - Bulk download as ZIP
+    - Selected item counter
+    - Visual feedback for selections
+
+14. KEYBOARD SHORTCUTS
+    - File Operations:
+      * Ctrl+U: Upload files
+      * Ctrl+N: New folder
+      * Delete: Delete selected items
+      * Backspace: Go to parent folder
+      * Enter: Open highlighted item
+    - Selection Management:
+      * Ctrl+A: Select all
+      * Ctrl+D: Deselect all
+      * Space: Toggle selection
+      * Esc: Clear selection and close modals
+    - Bulk Operations:
+      * Ctrl+Shift+D: Bulk download
+      * Ctrl+Shift+M: Bulk move
+    - Navigation:
+      * Arrow Up/Down: Navigate items
+      * Arrow Left/Right: Quick actions
+    - View & Help:
+      * F1 or ?: Show shortcuts help
+      * R: Refresh page
+    - Visual indicators for keyboard navigation
+    - Help modal with all shortcuts
+    - First-time tooltip
+
+15. DARK MODE THEME
+    - One-click theme toggle (moon/sun icon)
+    - Persistent preference (localStorage)
+    - Smooth 300ms transitions
+    - Complete coverage of all UI elements
+    - Custom color palette:
+      * Light mode: White backgrounds, dark text
+      * Dark mode: Dark gray backgrounds (#1a1a1a), light text (#f5f5f5)
+    - Themed components:
+      * Navbar, cards, modals, forms
+      * Tables, dropdowns, breadcrumbs
+      * Buttons, badges, alerts
+      * File/folder icons
+    - Works on all pages
+    - No page reload required
+
+================================================================================
+                         FAVORITES & ORGANIZATION
+================================================================================
+
+16. FAVORITES FEATURE
+    - Bookmark files and folders
+    - Star button next to each item
+    - Visual indicators (solid/outline star)
+    - Dedicated Favorites page
+    - Statistics (total, files, folders count)
+    - Works with owned and shared items
+    - Per-user favorites list
+    - Quick access to frequently used items
+
+17. TRASH/RECYCLE BIN
+    - Soft delete (15-day retention)
+    - View all deleted items
+    - Days remaining until auto-deletion
+    - Visual warning for items expiring soon (3 days)
+    - Restore individual items
+    - Restore folders with all contents
+    - Permanent delete from trash
+    - Empty trash (delete all)
+    - Automatic cleanup background service
+    - Storage quota preserved until permanent deletion
+
+================================================================================
+                         ACTIVITY & MONITORING
+================================================================================
+
+18. ACTIVITY LOGGING
+    - Track all user actions:
+      * File uploads, downloads, views
+      * Folder creation, deletion
+      * File sharing, edits
+      * Login/logout events
+    - Activity timeline
+    - Filter by date range and activity type
+    - File-specific activity history
+    - Recent activities view
+    - IP address and user agent logging
+    - Additional metadata storage
+    - Pagination support
+
+19. STORAGE ANALYTICS
+    - Real-time storage usage tracking
+    - Visual storage quota indicators
+    - File and folder count statistics
+    - Used vs available storage display
+    - Per-user quota management (5GB default)
+    - Storage usage calculation
+    - Quota enforcement
+
+================================================================================
+                         COLLABORATION FEATURES
+================================================================================
+
+20. COMMENTS & COLLABORATION
+    - Add comments to files
+    - Threaded/nested comment replies
+    - Edit and delete own comments
+    - View comment history
+    - Comment count per file
+    - User attribution for comments
+    - Timestamp tracking
+    - Permission-based access
+    - Comment notifications
+
+================================================================================
+                         AI & AUTOMATION
+================================================================================
+
+21. AI-POWERED FEATURES (Google Gemini)
+    - AI-assisted folder creation
+    - AI-assisted file creation
+    - Natural language processing
+    - Smart suggestions
+    - Semantic search enhancement
+    - Vietnamese language support
+
+================================================================================
+                         TECHNICAL SERVICES
+================================================================================
+
+22. SERVICES & INFRASTRUCTURE
+    - FileStorageService: Physical file management
+    - StorageService: Database operations for items
+    - FileVersionService: Version control management
+    - SharingService: Share management
+    - GroupService: Contact group management
+    - SemanticSearchService: Intelligent search
+    - DocumentPreviewService: Document rendering
+    - GeminiAIService: AI integration
+    - GmailService: Email sending
+    - TrashCleanupService: Automatic trash cleanup
+    - ActivityService: Activity logging
+    - CommentService: Comment management
+
+23. SECURITY FEATURES
+    - ASP.NET Core Identity authentication
+    - Role-based authorization
+    - Cookie-based authentication
+    - Password hashing (PBKDF2)
+    - Secure password reset tokens (32-byte)
+    - Token expiration (1 hour)
+    - File access validation
+    - Permission checking (owner, shared)
+    - CSRF protection
+    - SQL injection prevention (EF Core)
+    - File upload validation
+    - MIME type validation
+    - File size limits
+
+================================================================================
+                         DATA MODELS
+================================================================================
+
+24. DATABASE ENTITIES
+    - ApplicationUser: User accounts and profiles
+    - StorageItem: Files and folders
+    - SharedItem: Sharing information
+    - FileVersion: File version history
+    - Group: Contact groups
+    - GroupMember: Group membership
+    - Favorite: User favorites
+    - PasswordResetToken: Password reset tokens
+    - ActivityLog: User activity tracking
+    - Comment: File comments
+    - AspNetUsers, AspNetRoles, etc.: Identity framework
+
+================================================================================
+                         CONTROLLER ACTIONS
+================================================================================
+
+25. CONTROLLERS & ENDPOINTS
+
+AccountController:
+- Login, Logout, Register
+- ForgotPassword, ResetPassword
+- User profile management
+
+StorageController:
+- Index (browse files/folders)
+- Upload (single and bulk)
+- CreateFolder
+- Delete (soft delete)
+- Rename
+- Move
+- Search
+- Download (single and bulk)
+- SharedWithMe
+- MyShares
+- Trash
+- RestoreFromTrash
+- PermanentDelete
+- EmptyTrash
+- ToggleFavorite
+- Favorites
+- ReplaceFile
+
+ShareController:
+- CreateShare
+- RevokeShare
+- PublicShare (public link access)
+- Download (from share link)
+
+PreviewController:
+- Document (PDF, Word, Excel, Images)
+- GetPreview (JSON preview data)
+- Download
+- Edit (text editor view)
+- Edit POST (save edited content)
+- Video (video player)
+- GetVideoStream (video streaming)
+
+VersionController:
+- History (view version history)
+- Restore (restore previous version)
+- Download (download specific version)
+- Delete (delete specific version)
+
+GroupsController:
+- Index (list groups)
+- Create, Edit, Delete groups
+- ManageMembers
+- AddMember, RemoveMember
+- ImportContacts
+- GetGroupMembers, GetUserGroups
+
+ActivityController:
+- Index (activity timeline)
+- Recent (recent activities)
+- FileActivity (file-specific activities)
+- GetRecentActivities (JSON API)
+
+HomeController:
+- Index (landing page)
+- Privacy
+
+================================================================================
+                         FRONTEND TECHNOLOGIES
+================================================================================
+
+26. UI FRAMEWORKS & LIBRARIES
+    - Bootstrap 5: Responsive UI framework
+    - Font Awesome 6.0.0: Icon library
+    - Bootstrap Icons 1.11.0: Additional icons
+    - jQuery: DOM manipulation and AJAX
+    - Monaco Editor: Code editor
+    - Marked.js: Markdown parsing
+    - DOMPurify: HTML sanitization
+    - Custom JavaScript for:
+      * Drag-and-drop
+      * Keyboard shortcuts
+      * Theme switching
+      * Bulk operations
+      * Dynamic UI updates
+
+27. RESPONSIVE DESIGN
+    - Mobile-friendly interface
+    - Touch-optimized controls
+    - Adaptive layouts
+    - Responsive tables
+    - Mobile navigation
+    - Responsive modals
+    - Grid system (Bootstrap)
+    - Breakpoint support
+
+================================================================================
+                         FILE SUPPORT
+================================================================================
+
+28. SUPPORTED FILE TYPES
+
+Documents:
+- PDF (.pdf)
+- Microsoft Word (.docx)
+- Microsoft Excel (.xlsx, .xls)
+- Plain Text (.txt)
+- Rich Text (.rtf)
+- Markdown (.md, .markdown)
+- Log files (.log)
+
+Images:
+- PNG (.png)
+- JPEG (.jpg, .jpeg)
+- GIF (.gif)
+- BMP (.bmp)
+
+Videos:
+- MP4 (.mp4, .m4v)
+- WebM (.webm)
+- OGG (.ogg)
+- QuickTime (.mov)
+- AVI (.avi)
+- Matroska (.mkv)
+- Windows Media (.wmv)
+- Flash Video (.flv)
+
+Code & Config:
+- HTML/CSS (.html, .htm, .css)
+- JavaScript/TypeScript (.js, .jsx, .ts, .tsx)
+- Python (.py)
+- Java (.java)
+- C/C++ (.c, .cpp, .h)
+- C# (.cs)
+- PHP (.php)
+- Ruby (.rb)
+- Go (.go)
+- Rust (.rs)
+- Swift (.swift)
+- JSON (.json)
+- XML (.xml)
+- YAML (.yaml, .yml)
+- INI (.ini, .cfg, .conf)
+- Shell scripts (.sh, .bash, .bat, .ps1)
+- SQL (.sql)
+
+================================================================================
+                         EXTERNAL INTEGRATIONS
+================================================================================
+
+29. API INTEGRATIONS
+    - Google Gemini AI API:
+      * Model: gemini-2.5-flash
+      * Natural language processing
+      * Semantic search
+      * AI-assisted content creation
+    
+    - Gmail SMTP API:
+      * Email sending via smtp.gmail.com:587
+      * App password authentication
+      * Password reset emails
+      * HTML email templates
+
+30. NUGET PACKAGES
+    - Microsoft.AspNetCore.Identity.EntityFrameworkCore 9.0.10
+    - Microsoft.EntityFrameworkCore.SqlServer 9.0.10
+    - Microsoft.EntityFrameworkCore.Tools 10.0.0
+    - Google.Apis.Gmail.v1 1.72.0.3966
+    - NPOI 2.7.5 (Excel/Word processing)
+    - Tesseract 5.2.0 (OCR)
+    - Microsoft.KernelMemory.Core 0.98.250508.3
+    - SixLabors.ImageSharp 2.1.11
+
+================================================================================
+                         DOCUMENTATION FILES
+================================================================================
+
+31. AVAILABLE DOCUMENTATION
+    - README.md: Project overview and setup
+    - PROJECT_DOCUMENTATION.txt: Comprehensive technical documentation
+    - SEMANTIC_SEARCH.md: Semantic search feature details
+    - SHARING_FEATURES_DOCUMENTATION.md: Sharing capabilities
+    - SHARING_EDIT_FEATURES.md: Editor permissions
+    - GROUP_SHARING_FEATURE.md: Group management
+    - FAVORITES_FEATURE.md: Favorites functionality
+    - TRASH_FEATURE.md: Trash/recycle bin
+    - DOCUMENT_PREVIEW_IMPLEMENTATION.md: Preview features
+    - DOCUMENT_PREVIEW_SETUP.md: Setup guide
+    - PREVIEW_QUICK_START.md: Quick start guide
+    - PREVIEW_TROUBLESHOOTING.md: Common issues
+    - VIDEO_PREVIEW_FEATURE.md: Video player
+    - TEXT_EDITOR_FEATURE.md: In-browser editing
+    - TEXT_EDITOR_TROUBLESHOOTING.md: Editor issues
+    - FILE_VERSIONING_DOCUMENTATION.md: Version control
+    - DRAG_DROP_BULK_OPERATIONS.md: UI enhancements
+    - KEYBOARD_SHORTCUTS_DOCUMENTATION.md: Shortcuts guide
+    - SORTING_FEATURES_DOCUMENTATION.md: Sorting options
+    - DARK_MODE_DOCUMENTATION.md: Theme system
+    - PROJECT_FEATURES_LIST.txt: This file
+
+================================================================================
+                         TOTAL FEATURE COUNT
+================================================================================
+
+Categories:
+- Core Features: 3 major feature groups
+- Search & Discovery: 2 feature sets
+- Sharing: 3 feature sets
+- Preview & Editing: 3 major features
+- UI Enhancements: 4 major features
+- Organization: 2 features
+- Monitoring: 2 features
+- Collaboration: 1 feature
+- AI: 1 feature
+- Services: 2 feature groups
+- Security: 1 comprehensive set
+- Technical: Multiple supporting features
+
+Total Major Features: 31 documented feature groups
+Total Individual Functions: 100+ distinct capabilities
+
+================================================================================
+                              END OF LIST
+================================================================================
+Generated: January 6, 2026
+Project Status: Active Development
+Next Steps: Continued iteration and feature enhancement

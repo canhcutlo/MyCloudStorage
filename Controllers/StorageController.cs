@@ -5,6 +5,7 @@ using CloudStorage.Models;
 using CloudStorage.Models.ViewModels;
 using CloudStorage.Services;
 using CloudStorage.Data;
+using System.IO.Compression;
 
 namespace CloudStorage.Controllers
 {
@@ -1312,5 +1313,247 @@ namespace CloudStorage.Controllers
         }
 
 
+    
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> BulkDelete(List<int> itemIds)
+        {
+            if (itemIds == null || !itemIds.Any())
+            {
+                return Json(new { success = false, message = "No items selected." });
+            }
+
+            var userId = _userManager.GetUserId(User)!;
+            var deletedCount = 0;
+            var errors = new List<string>();
+
+            foreach (var itemId in itemIds)
+            {
+                try
+                {
+                    var success = await _storageService.DeleteItemAsync(itemId, userId);
+                    if (success)
+                    {
+                        deletedCount++;
+                    }
+                    else
+                    {
+                        errors.Add($"Failed to delete item {itemId}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error deleting item {ItemId}", itemId);
+                    errors.Add($"Error deleting item {itemId}");
+                }
+            }
+
+            if (deletedCount > 0)
+            {
+                TempData["SuccessMessage"] = $"Successfully deleted {deletedCount} item(s).";
+            }
+
+            if (errors.Any())
+            {
+                TempData["ErrorMessage"] = string.Join("; ", errors);
+            }
+
+            return Json(new { success = deletedCount > 0, deletedCount, errors });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> BulkMove(List<int> itemIds, int? targetFolderId)
+        {
+            if (itemIds == null || !itemIds.Any())
+            {
+                return Json(new { success = false, message = "No items selected." });
+            }
+
+            var userId = _userManager.GetUserId(User)!;
+            var movedCount = 0;
+            var errors = new List<string>();
+
+            foreach (var itemId in itemIds)
+            {
+                try
+                {
+                    var success = await _storageService.MoveItemAsync(itemId, targetFolderId, userId);
+                    if (success)
+                    {
+                        movedCount++;
+                    }
+                    else
+                    {
+                        errors.Add($"Failed to move item {itemId}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error moving item {ItemId}", itemId);
+                    errors.Add($"Error deleting item {itemId}");
+                }
+            }
+
+            if (movedCount > 0)
+            {
+                TempData["SuccessMessage"] = $"Successfully moved {movedCount} item(s).";
+            }
+
+            if (errors.Any())
+            {
+                TempData["ErrorMessage"] = string.Join("; ", errors);
+            }
+
+            return Json(new { success = movedCount > 0, movedCount, errors });
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> BulkDownload(List<int> itemIds)
+        {
+            if (itemIds == null || !itemIds.Any())
+            {
+                return BadRequest("No items selected.");
+            }
+
+            var userId = _userManager.GetUserId(User)!;
+
+            try
+            {
+                if (itemIds.Count == 1)
+                {
+                    return await Download(itemIds[0]);
+                }
+
+                var zipFileName = $"download_{DateTime.UtcNow:yyyyMMddHHmmss}.zip";
+                var zipPath = Path.Combine(Path.GetTempPath(), zipFileName);
+
+                using (var zipArchive = System.IO.Compression.ZipFile.Open(zipPath, System.IO.Compression.ZipArchiveMode.Create))
+                {
+                    foreach (var itemId in itemIds)
+                    {
+                        var item = await _storageService.GetItemAsync(itemId, userId);
+                        if (item == null || item.Type != StorageItemType.File)
+                            continue;
+
+                        var filePath = Path.Combine(_environment.WebRootPath, "uploads", item.FilePath);
+                        if (System.IO.File.Exists(filePath))
+                        {
+                            zipArchive.CreateEntryFromFile(filePath, item.Name);
+                        }
+                    }
+                }
+
+                var memory = new MemoryStream();
+                using (var stream = new FileStream(zipPath, FileMode.Open, FileAccess.Read))
+                {
+                    await stream.CopyToAsync(memory);
+                }
+                memory.Position = 0;
+
+                System.IO.File.Delete(zipPath);
+
+                return File(memory, "application/zip", zipFileName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in bulk download");
+                return BadRequest("An error occurred while creating the download.");
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> UploadMultiple(List<IFormFile> files, int? folderId)
+        {
+            if (files == null || !files.Any())
+            {
+                return Json(new { success = false, message = "No files provided." });
+            }
+
+            var userId = _userManager.GetUserId(User)!;
+            var user = await _userManager.FindByIdAsync(userId);
+
+            if (user == null)
+            {
+                return Json(new { success = false, message = "User not found." });
+            }
+
+            var uploadedCount = 0;
+            var errors = new List<string>();
+            var uploadedFiles = new List<object>();
+
+            foreach (var file in files)
+            {
+                try
+                {
+                    if (user.UsedStorage + file.Length > user.StorageQuota)
+                    {
+                        errors.Add($"{file.FileName}: Storage quota exceeded");
+                        continue;
+                    }
+
+                    var fileExists = await _storageService.ItemExistsAsync(file.FileName, folderId, userId);
+                    if (fileExists)
+                    {
+                        errors.Add($"{file.FileName}: File already exists");
+                        continue;
+                    }
+
+                    var filePath = await _fileStorageService.SaveFileAsync(file, userId);
+
+                    string fileHash;
+                    using (var stream = file.OpenReadStream())
+                    {
+                        fileHash = _fileStorageService.CalculateFileHash(stream);
+                    }
+
+                    var storageItem = await _storageService.CreateFileAsync(
+                        file.FileName,
+                        filePath,
+                        file.Length,
+                        _fileStorageService.GetMimeType(file.FileName),
+                        fileHash,
+                        userId,
+                        folderId,
+                        false,
+                        ""
+                    );
+
+                    user.UsedStorage += file.Length;
+
+                    var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+                    var userAgent = HttpContext.Request.Headers["User-Agent"].ToString();
+                    await _activityService.LogActivityAsync(
+                        storageItem.Id,
+                        userId,
+                        ActivityType.FileUploaded,
+                        $"Uploaded file: {file.FileName}",
+                        ipAddress,
+                        userAgent
+                    );
+
+                    uploadedCount++;
+                    uploadedFiles.Add(new { id = storageItem.Id, name = file.FileName });
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error uploading file {FileName}", file.FileName);
+                    errors.Add($"{file.FileName}: Upload failed");
+                }
+            }
+
+            if (uploadedCount > 0)
+            {
+                await _userManager.UpdateAsync(user);
+            }
+
+            return Json(new
+            {
+                success = uploadedCount > 0,
+                uploadedCount,
+                errors,
+                files = uploadedFiles
+            });
+        }
     }
 }
