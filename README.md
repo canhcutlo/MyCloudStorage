@@ -220,6 +220,18 @@ dotnet publish -c Release -o ./publish
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
+## Documentation
+
+For detailed technical documentation, see:
+- [Download Process Analysis](DOWNLOAD_PROCESS_ANALYSIS.md) - Comprehensive analysis of file download mechanisms
+- [Semantic Search](SEMANTIC_SEARCH.md) - Vietnamese semantic search implementation
+- [Activity Feed](ACTIVITY_FEED_FEATURE.md) - Activity logging and monitoring
+- [File Versioning](FILE_VERSIONING_DOCUMENTATION.md) - Version control for files
+- [Sharing Features](SHARING_FEATURES_DOCUMENTATION.md) - File and folder sharing
+- [Group Sharing](GROUP_SHARING_FEATURE.md) - Group-based sharing capabilities
+- [Document Preview](DOCUMENT_PREVIEW_IMPLEMENTATION.md) - File preview functionality
+- [Favorites Feature](FAVORITES_FEATURE.md) - Favorite files and folders
+
 ## Support
 
 For support, please open an issue in the GitHub repository or contact the development team.
