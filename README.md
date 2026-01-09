@@ -163,6 +163,18 @@ CloudStorage/
 
 See [SEMANTIC_SEARCH.md](SEMANTIC_SEARCH.md) for detailed documentation.
 
+## Documentation
+
+### Project Documentation Files
+- **[VIEWS_DIRECTORY_DOCUMENTATION.md](VIEWS_DIRECTORY_DOCUMENTATION.md)** - Detailed explanation of the Views directory structure (Vietnamese)
+- **[SEMANTIC_SEARCH.md](SEMANTIC_SEARCH.md)** - Semantic search implementation and features
+- **[DARK_MODE_DOCUMENTATION.md](DARK_MODE_DOCUMENTATION.md)** - Dark mode feature documentation
+- **[FILE_VERSIONING_DOCUMENTATION.md](FILE_VERSIONING_DOCUMENTATION.md)** - File versioning system
+- **[GROUP_SHARING_FEATURE.md](GROUP_SHARING_FEATURE.md)** - Group sharing functionality
+- **[KEYBOARD_SHORTCUTS_DOCUMENTATION.md](KEYBOARD_SHORTCUTS_DOCUMENTATION.md)** - Keyboard shortcuts guide
+- **[TRASH_FEATURE.md](TRASH_FEATURE.md)** - Trash/recycle bin feature
+- And more feature-specific documentation files...
+
 ## Configuration
 
 ### File Upload Limits
