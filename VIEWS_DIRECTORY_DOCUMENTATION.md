@@ -1,4 +1,4 @@
-# GIẢI THÍCH CHI TIẾT THư MỤC VIEWS (Views Directory Documentation)
+# GIẢI THÍCH CHI TIẾT THƯ MỤC VIEWS (Views Directory Documentation)
 
 ## Tổng Quan (Overview)
 
@@ -673,6 +673,19 @@ Generates: `<a href="/Storage/Index/123">View</a>`
 <title>@ViewData["Title"] - CloudStorage</title>
 <h1>@ViewBag.Message</h1>
 ```
+
+**Sự khác biệt**:
+- **ViewData**: Dictionary-based, requires type casting, compile-time checking
+  ```cshtml
+  ViewData["Count"] = 10;
+  var count = (int)ViewData["Count"]; // Need casting
+  ```
+- **ViewBag**: Dynamic object, no casting needed, but no compile-time checking
+  ```cshtml
+  ViewBag.Count = 10;
+  var count = ViewBag.Count; // No casting needed
+  ```
+- **Khi nào sử dụng**: ViewData cho simple values, prefer strongly-typed ViewModels for complex data
 
 ---
 
